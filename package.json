@@ -1,0 +1,20 @@
+{
+  "name": "random-seed",
+  "version": "1.0.0",
+  "description": "Node JS Addon wrapping srand for seed-random reproducibility",
+  "main": "index.js",
+  "scripts": {
+    "test": "mocha -r ts-node/register test/**/*.spec.ts",
+    "build": "cd ./src && node-gyp configure && node-gyp build && cd ../ && tsc"
+  },
+  "keywords": [
+    "C++",
+    "Addon",
+    "NodeJS",
+    "Random",
+    "Seed",
+    "Generator"
+  ],
+  "author": "Chris Boese",
+  "license": "ISC"
+}

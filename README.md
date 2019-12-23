@@ -1,0 +1,1 @@
+<h1>NodeJS native addon wrapper around c++ random library</h1>
