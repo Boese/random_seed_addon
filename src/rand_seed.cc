@@ -157,13 +157,13 @@ static napi_value GenerateRandom(napi_env env, napi_callback_info info) {
 static napi_value GenerateRandomSequence(napi_env env, napi_callback_info info) {
   AddonData* addon_data = GetAddonData(env, info);
 
-  // Get min/max/size
-  size_t argc = 3;
-  napi_value args[3];
+  // Get min/max/size/Node JS Writeable::write function
+  size_t argc = 4;
+  napi_value args[4];
   napi_status status = napi_get_cb_info(env, info, &argc, args, nullptr, nullptr);
   assert(status == napi_ok);
 
-  if (argc < 3) {
+  if (argc < 4) {
     napi_throw_type_error(env, nullptr, "Wrong number of arguments");
     return nullptr;
   }
@@ -177,10 +177,19 @@ static napi_value GenerateRandomSequence(napi_env env, napi_callback_info info) 
   assert(status == napi_ok);
 
   napi_valuetype valuetype2;
-  status = napi_typeof(env, args[1], &valuetype2);
+  status = napi_typeof(env, args[2], &valuetype2);
+  assert(status == napi_ok);
+
+  napi_valuetype valuetype3;
+  status = napi_typeof(env, args[3], &valuetype3);
   assert(status == napi_ok);
 
   if (valuetype0 != napi_number || valuetype1 != napi_number || valuetype2 != napi_number) {
+    napi_throw_type_error(env, nullptr, "Wrong arguments");
+    return nullptr;
+  }
+
+  if (valuetype3 != napi_function) {
     napi_throw_type_error(env, nullptr, "Wrong arguments");
     return nullptr;
   }
@@ -194,13 +203,38 @@ static napi_value GenerateRandomSequence(napi_env env, napi_callback_info info) 
   assert(status == napi_ok);
 
   uint32_t size;
-  status = napi_get_value_uint32(env, args[1], &size);
+  status = napi_get_value_uint32(env, args[2], &size);
   assert(status == napi_ok);
 
   if (max < min) {
     napi_throw_type_error(env, nullptr, "Max < Min. Min value must be less than Max");
     return nullptr;
   }
+
+  napi_value writeFunc = args[3];
+  napi_value argv[1];
+  status = napi_create_string_utf8(env, "hello world", NAPI_AUTO_LENGTH, argv);
+  assert(status == napi_ok);
+  
+  napi_value global;
+  status = napi_get_global(env, &global);
+  assert(status == napi_ok);
+
+  std::cout << "napi get addon_stream" << std::endl;
+  napi_value js_write_stream;
+  status = napi_get_named_property(env, global, "addon_stream", &js_write_stream);
+  assert(status == napi_ok);
+
+  std::cout << "get prop names" << std::endl;
+  napi_value prop_names;
+  status = napi_get_property_names(env, js_write_stream, &prop_names);
+  assert(status == napi_ok);
+  
+  std::cout << prop_names << std::endl;
+
+  // napi_value temp_result;
+  // status = napi_call_function(env, global, writeFunc, 1, argv, &temp_result);
+  // assert(status == napi_ok);
 
   // Create new arraybuffer uint8_t[]
   const uint32_t buffsize = size*4;

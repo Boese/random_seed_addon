@@ -1,4 +1,4 @@
-import { RandomGenerator } from '../../src/random-seed'
+import { RandomGenerator } from '../src/'
 
 import 'mocha'
 import chai from 'chai'
