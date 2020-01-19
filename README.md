@@ -28,7 +28,7 @@ class RandSeed (implement Writeable stream) {
         int32_t Generate(min, max) // send a random number immediately
 
         template<typename T>
-        void GenerateSequenceAsync(min, max, size) -> sends random numbers to the underlying stream buffer
+        void GenerateSequenceAsync(min, max, size) // sends random numbers to the underlying stream buffer
 };
 ```
 
