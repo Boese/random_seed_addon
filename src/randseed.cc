@@ -20,9 +20,79 @@ void RandSeed::Destructor(napi_env env,
   reinterpret_cast<RandSeed*>(nativeObject)->~RandSeed();
 }
 
+napi_value RandSeed::TestFunc(napi_env env, napi_callback_info info)
+{
+    // /* NEED TO CALL SUPER OF Node JS Readable */
+    // napi_call_super(env, info, "TestFunc", 0, nullptr);
+    // return nullptr;
+
+    napi_value jsthis;
+    size_t argc = 1;
+    napi_value args[1];
+    napi_status status = napi_get_cb_info(env, info, &argc, args, &jsthis, nullptr);
+    assert(status == napi_ok);
+    assert(argc == 1);
+
+    napi_valuetype valuetype0;
+    status = napi_typeof(env, args[0], &valuetype0);
+    assert(status == napi_ok);
+    assert(valuetype0 == napi_function);
+
+    napi_value func = args[0];
+
+    // Call super (from Node)
+    napi_value result2;
+    status = napi_call_function(env, jsthis, func, 0, nullptr, &result2);
+    assert(status == napi_ok);
+
+    // Verify have push function
+    bool has = false;
+    status = napi_has_named_property(env, jsthis, "push", &has);
+    assert(has);
+
+    // Create new arraybuffer uint32_t[]
+    const uint32_t uint32_buff_size = 4000;
+    const uint32_t uint8_buff_size = uint32_buff_size*4; // (for uint32_t random numbers)
+
+    uint32_t* buff = nullptr;
+    
+    napi_value res;
+    status = napi_create_arraybuffer(env, uint8_buff_size, (void**)&buff, &res);
+    assert(status == napi_ok);
+
+    for (uint32_t i = 0; i < uint32_buff_size; i++) {
+        buff[i] = i;
+    }
+
+    napi_value res2;
+    status = napi_create_typedarray(env, napi_typedarray_type::napi_uint8_array, uint8_buff_size, res, 0, &res2);
+    assert(status == napi_ok);
+
+    napi_value func2;
+    status = napi_get_named_property(env, jsthis, "push", &func2);
+    assert(status == napi_ok);
+
+    napi_value pushResult;
+    status = napi_call_function(env, jsthis, func2, 1, &res2, &pushResult);
+    assert(status == napi_ok);
+
+    status = napi_call_function(env, jsthis, func2, 1, &res2, &pushResult);
+    assert(status == napi_ok);
+
+    // NOTE: MUST CALL NULL WHEN FINISHED OR ERROR WILL OCCUR
+    napi_value null_value;
+    status = napi_get_null(env, &null_value);
+    assert(status == napi_ok);
+    status = napi_call_function(env, jsthis, func2, 1, &null_value, &pushResult);
+    assert(status == napi_ok);
+
+    return nullptr;
+}
+
 napi_value RandSeed::Init(napi_env env, napi_value exports) {
   napi_status status;
   napi_property_descriptor properties[] = {
+    { "TestFunc", 0, TestFunc, 0, 0, 0, napi_default, 0 },
     { "SetSeed", 0, SetSeed, 0, 0, 0, napi_default, 0 },
     { "Generate", 0, Generate, 0, 0, 0, napi_default, 0 },
     { "GenerateSequenceStream", 0, GenerateSequenceStream, 0, 0, 0, napi_default, 0 }
@@ -51,6 +121,7 @@ napi_value RandSeed::New(napi_env env, napi_callback_info info) {
   bool is_constructor = target != nullptr;
 
   if (is_constructor) {
+    std::cout << "Ctor" << std::endl;
     // Invoked as constructor: `new RandSeed()`
     napi_value jsthis;
     status = napi_get_cb_info(env, info, nullptr, nullptr, &jsthis, nullptr);
@@ -63,12 +134,13 @@ napi_value RandSeed::New(napi_env env, napi_callback_info info) {
                        jsthis,
                        reinterpret_cast<void*>(rSeed),
                        RandSeed::Destructor,
-                       nullptr,  // finalize_hint
+                       nullptr,
                        &rSeed->m_wrapper);
     assert(status == napi_ok);
-
+    
     return jsthis;
   } else {
+    std::cout << "Invoked as plain function" << std::endl;
     // Invoked as plain function `RandSeed()`, turn into construct call.
     status = napi_get_cb_info(env, info, nullptr, nullptr, nullptr, nullptr);
     assert(status == napi_ok);

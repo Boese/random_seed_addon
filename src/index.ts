@@ -1,22 +1,93 @@
 let RandSeed = require("./build/Release/random_seed.node").RandSeed
 import { Writable, Readable } from 'stream'
-import { EventEmitter } from 'events'
 import { inherits } from 'util'
+inherits(RandSeed, Readable); // required
 
-
-class RandSeed2 {
-    constructor() {
-        Readable.call(this, {})
+let w = new Writable({
+    write(chunk: Uint8Array, encoding, callback) {
+        let d = new DataView(chunk.buffer)
+        let n = d.getInt32(15996, true)
+        console.log(n);
+        callback();
     }
+})
+
+// TODO: Can this be found from addon directly? If so Addon should call and not need cb supplied to ctor
+// Return cb function that will call superCtor when invoked
+let AddonCallSuperHelper = (superCtor: Function, ...ctor_args: any[]) => {
+    return function() { superCtor.call(this, ...ctor_args); }
 }
-// Addon to inherit Writeable
-inherits(RandSeed2, Readable )
+let RandSeedCallReadableSuper = AddonCallSuperHelper(Readable, {});
+
+// Pass AddonHelper function to call superCtor of Readable
+let randSeedAddon = new RandSeed(/*RandSeedCallReadableSuper*/);
+
+// TODO: Replace TestFunc and pass directly to Ctor
+randSeedAddon.TestFunc(RandSeedCallReadableSuper);
+randSeedAddon.pipe(w);
+
+
+
+//inherits(RandSeed, Readable);
+
+// function RandSeedAddonHelper() {
+//     if (!(this instanceof RandSeedAddonHelper))
+//       return new (RandSeedAddonHelper as any)();
+//     console.log('new RandSeedAddonHelper');
+//     Readable.call(this, {encoding: 'utf8', objectMode: false});
+//   }
+//   inherits(RandSeedAddonHelper, Readable);
+
+
+// console.log('new RandSeed()');
+// let r: Readable = new RandSeed();
+// //let r: Readable = RandSeedAddonHelper();
+
+// (r as any).TestFunc(RandSeedAddonHelper);
+
+// let w = new Writable({
+//     write(chunk, encoding, callback) {
+//         console.log(chunk.toString());
+//         callback();
+//     }
+// })
+
+// r.push("hello");
+// r.push("world");
+// r.push(null);
+// console.log('data pushed');
+// r.pipe(w);
+
+// class RandSeedAddonHelper extends Readable {
+//     constructor() {
+//         console.log('helper called')
+//         super({encoding: 'utf8'})
+//     }
+// }
+
+
+// // Addon to extend Readable (w/Helper to call super() <- Not supported currently in node_api)
+// //function RandSeedAddonHelper() { Readable.call(this) };
+//inherits(RandSeed, Readable )
 
 export class RandomGenerator {
     private _r:any;
+    private TestFunc: Function;
     
 
     constructor() {
+
+        this.TestFunc = () => {
+            console.log("test func called");
+        }
+
+        function RandSeedAddonHelper() {
+            if (!(this instanceof RandSeedAddonHelper))
+              return new (RandSeedAddonHelper as any)();
+            console.log('new RandSeedAddonHelper');
+            Readable.call(this, {});
+          }
+          inherits(RandSeedAddonHelper, Readable);
 
         let w = new Writable({
             write(chunk, encoding, callback) {
@@ -24,18 +95,18 @@ export class RandomGenerator {
                 callback();
             }
         })
-        //let r = new Readable({})
+
+        let r = RandSeedAddonHelper();
 
         
 
-        // r.push("hello");
-        // r.push("world");
-        // r.push(null);
-        // console.log('data pushed');
-        // r.pipe(w);
+        r.push("hello");
+        r.push("world");
+        r.push(null);
+        console.log('data pushed');
+        r.pipe(w);
 
-        this._r = new RandSeed2();
-        this._r.push("hello");
+        this._r = new RandSeed();
         this._r.pipe(w);
         this._r.SetSeed(10);
         this._r.GenerateSequenceStream(0, 10, 10);
