@@ -8,13 +8,11 @@ private:
     explicit RandSeed();
     ~RandSeed();
 
-    static napi_value CallSuper(napi_env env, napi_callback_info info);
     static napi_value New(napi_env env, napi_callback_info info);
+    static napi_value SetSeed(napi_env env, napi_callback_info info);
     static napi_value Generate(napi_env env, napi_callback_info info);
     static napi_value GenerateSequenceStream(napi_env env, napi_callback_info info);
-    static napi_value SetSeed(napi_env env, napi_callback_info info);
-    static napi_value TestFunc2(napi_env env, napi_callback_info info);
-
+    
     static napi_ref constructor;
     napi_env m_env;
     napi_ref m_wrapper;

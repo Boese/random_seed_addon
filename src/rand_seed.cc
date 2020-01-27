@@ -21,60 +21,9 @@ void RandSeed::Destructor(napi_env env,
   reinterpret_cast<RandSeed*>(nativeObject)->~RandSeed();
 }
 
-napi_value RandSeed::TestFunc2(napi_env env, napi_callback_info info)
-{
-    napi_value jsthis;
-    napi_status status = napi_get_cb_info(env, info, nullptr, nullptr, &jsthis, nullptr);
-    assert(status == napi_ok);
-
-    // Verify have push function
-    bool has = false;
-    status = napi_has_named_property(env, jsthis, "push", &has);
-    assert(has);
-
-    // Create new arraybuffer uint32_t[]
-    const uint32_t uint32_buff_size = 4000;
-    const uint32_t uint8_buff_size = uint32_buff_size*4; // (for uint32_t random numbers)
-
-    uint32_t* buff = nullptr;
-    
-    napi_value res;
-    status = napi_create_arraybuffer(env, uint8_buff_size, (void**)&buff, &res);
-    assert(status == napi_ok);
-
-    for (uint32_t i = 0; i < uint32_buff_size; i++) {
-        buff[i] = i;
-    }
-
-    napi_value res2;
-    status = napi_create_typedarray(env, napi_typedarray_type::napi_uint8_array, uint8_buff_size, res, 0, &res2);
-    assert(status == napi_ok);
-
-    napi_value func2;
-    status = napi_get_named_property(env, jsthis, "push", &func2);
-    assert(status == napi_ok);
-
-    napi_value pushResult;
-    status = napi_call_function(env, jsthis, func2, 1, &res2, &pushResult);
-    assert(status == napi_ok);
-
-    status = napi_call_function(env, jsthis, func2, 1, &res2, &pushResult);
-    assert(status == napi_ok);
-
-    // NOTE: MUST CALL NULL WHEN FINISHED OR ERROR WILL OCCUR
-    napi_value null_value;
-    status = napi_get_null(env, &null_value);
-    assert(status == napi_ok);
-    status = napi_call_function(env, jsthis, func2, 1, &null_value, &pushResult);
-    assert(status == napi_ok);
-
-    return nullptr;
-}
-
 napi_value RandSeed::Init(napi_env env, napi_value exports) {
   napi_status status;
   napi_property_descriptor properties[] = {
-    { "TestFunc2", 0, TestFunc2, 0, 0, 0, napi_default, 0 },
     { "SetSeed", 0, SetSeed, 0, 0, 0, napi_default, 0 },
     { "Generate", 0, Generate, 0, 0, 0, napi_default, 0 },
     { "GenerateSequenceStream", 0, GenerateSequenceStream, 0, 0, 0, napi_default, 0 }
@@ -261,6 +210,7 @@ napi_value RandSeed::Generate(napi_env env, napi_callback_info info) {
     return result;
 }
 
+// TODO: Change to async function so that push can be called after return
 napi_value RandSeed::GenerateSequenceStream(napi_env env, napi_callback_info info) {
     RandSeed* rSeed = GetSelf(env, info);
 
@@ -271,41 +221,46 @@ napi_value RandSeed::GenerateSequenceStream(napi_env env, napi_callback_info inf
     napi_status status = napi_get_cb_info(env, info, &argc, args, &jsthis, nullptr);
     assert(status == napi_ok);
 
-    bool hasPush = false;
-    napi_has_named_property(env, jsthis, "push", &hasPush);
+    // Verify have push function
+    bool has = false;
+    status = napi_has_named_property(env, jsthis, "push", &has);
+    assert(has);
 
-    napi_value pushFunc;
-    napi_get_named_property(env, jsthis, "push", &pushFunc);
+    // Create new arraybuffer uint32_t[]
+    const uint32_t uint32_buff_size = 4000;
+    const uint32_t uint8_buff_size = uint32_buff_size*4; // (for uint32_t random numbers)
 
-    napi_value argv[1];
-    status = napi_create_string_utf8(env, "start", NAPI_AUTO_LENGTH, argv);
+    uint32_t* buff = nullptr;
+    
+    napi_value res;
+    status = napi_create_arraybuffer(env, uint8_buff_size, (void**)&buff, &res);
     assert(status == napi_ok);
 
-    // TODO: Before I can call push, I need to call Readable.call(this, {}: options);
-    // How can I do this???
+    for (uint32_t i = 0; i < uint32_buff_size; i++) {
+        buff[i] = i;
+    }
 
-    napi_value result;
-    napi_call_function(env, jsthis, pushFunc, 1, argv, &result);
+    napi_value res2;
+    status = napi_create_typedarray(env, napi_typedarray_type::napi_uint8_array, uint8_buff_size, res, 0, &res2);
+    assert(status == napi_ok);
 
-    // napi_value result;
-    // napi_get_property_names(env, jsthis, &result);
+    napi_value func2;
+    status = napi_get_named_property(env, jsthis, "push", &func2);
+    assert(status == napi_ok);
 
-    // uint32_t size;
-    // napi_get_array_length(env, result, &size);
+    napi_value pushResult;
+    status = napi_call_function(env, jsthis, func2, 1, &res2, &pushResult);
+    assert(status == napi_ok);
 
-    // std::cout << "size of props on this: " << size << std::endl;
+    status = napi_call_function(env, jsthis, func2, 1, &res2, &pushResult);
+    assert(status == napi_ok);
 
-    // for (size_t i = 0; i < size; i++) {
-    //     napi_value r;
-    //     napi_get_element(env, result, i, &r);
-
-    //     char buf[100] = "";
-    //     size_t bytesCopied;
-    //     napi_get_value_string_utf8(env, r, buf, 100, &bytesCopied);
-    //     std::string val(buf);
-        
-    //     std::cout << val << std::endl;
-    // }
+    // NOTE: MUST CALL NULL WHEN FINISHED OR ERROR WILL OCCUR
+    napi_value null_value;
+    status = napi_get_null(env, &null_value);
+    assert(status == napi_ok);
+    status = napi_call_function(env, jsthis, func2, 1, &null_value, &pushResult);
+    assert(status == napi_ok);
 
     return nullptr;
 }
