@@ -6,6 +6,8 @@
 #include <iostream>
 #include <string>
 
+using namespace rand_addon;
+
 napi_ref RandSeed::constructor;
 
 RandSeed::RandSeed() : m_generator(std::make_unique<std::mt19937>(std::random_device{}())) {}
@@ -81,9 +83,8 @@ napi_value RandSeed::New(napi_env env, napi_callback_info info) {
     napi_value ctor;
     status = napi_get_reference_value(env, constructor, &ctor);
     
-    napi_value superArgv[1];
-    napi_create_object(env, (&superArgv)[0]);
-    status = napi_extensions::napi_inherits(env, info, ctor, super_ctor, 1, superArgv);
+    // "inherit" from NodeJS Readable
+    status = napi_extensions::napi_inherits(env, info, ctor, super_ctor, 0, nullptr);
     assert(status == napi_ok);
     
     return jsthis;
@@ -210,28 +211,36 @@ napi_value RandSeed::Generate(napi_env env, napi_callback_info info) {
     return result;
 }
 
-// TODO: Change to async function so that push can be called after return
-napi_value RandSeed::GenerateSequenceStream(napi_env env, napi_callback_info info) {
-    RandSeed* rSeed = GetSelf(env, info);
+void executeFunct(napi_env env, void* data) {
+  std::cout << "execute callback" << std::endl;
+}
 
-    // Get min/max/size
-    size_t argc = 3;
-    napi_value args[3];
-    napi_value jsthis;
-    napi_status status = napi_get_cb_info(env, info, &argc, args, &jsthis, nullptr);
+void completeFunc(napi_env env, napi_status status, void* data) {
+    std::cout << "complete callback" << std::endl;
     assert(status == napi_ok);
 
-    // Verify have push function
-    bool has = false;
-    status = napi_has_named_property(env, jsthis, "push", &has);
-    assert(has);
+    GenerateData* generate_data = (GenerateData*)data;
+
+    napi_ref jsthisref = generate_data->jsthis_ref;
+    napi_value jsthis;
+    status = napi_get_reference_value(env, jsthisref, &jsthis);
+    assert(status == napi_ok);
+
+    napi_ref cb_func_ref = generate_data->cb_func_ref;
+    napi_value cb_func;
+    status = napi_get_reference_value(env, cb_func_ref, &cb_func);
+    assert(status == napi_ok);
+
+    // Call cb to notify start pipe
+    status = napi_call_function(env, jsthis, cb_func, 0, nullptr, nullptr);
+    assert(status == napi_ok);
 
     // Create new arraybuffer uint32_t[]
     const uint32_t uint32_buff_size = 4000;
     const uint32_t uint8_buff_size = uint32_buff_size*4; // (for uint32_t random numbers)
 
     uint32_t* buff = nullptr;
-    
+
     napi_value res;
     status = napi_create_arraybuffer(env, uint8_buff_size, (void**)&buff, &res);
     assert(status == napi_ok);
@@ -248,19 +257,100 @@ napi_value RandSeed::GenerateSequenceStream(napi_env env, napi_callback_info inf
     status = napi_get_named_property(env, jsthis, "push", &func2);
     assert(status == napi_ok);
 
-    napi_value pushResult;
-    status = napi_call_function(env, jsthis, func2, 1, &res2, &pushResult);
-    assert(status == napi_ok);
-
-    status = napi_call_function(env, jsthis, func2, 1, &res2, &pushResult);
-    assert(status == napi_ok);
+    for (int i = 0; i < 10; i++) {
+      status = napi_call_function(env, jsthis, func2, 1, &res2, nullptr);
+      assert(status == napi_ok);
+    }
 
     // NOTE: MUST CALL NULL WHEN FINISHED OR ERROR WILL OCCUR
     napi_value null_value;
     status = napi_get_null(env, &null_value);
     assert(status == napi_ok);
-    status = napi_call_function(env, jsthis, func2, 1, &null_value, &pushResult);
+    status = napi_call_function(env, jsthis, func2, 1, &null_value, nullptr);
     assert(status == napi_ok);
+    
+    uint32_t ref_count;
+    status = napi_reference_unref(env, jsthisref, &ref_count);
+    assert(status == napi_ok);
+    assert(ref_count == 0);
+    status = napi_reference_unref(env, cb_func_ref, &ref_count);
+    assert(status == napi_ok);
+    assert(ref_count == 0);
+    delete generate_data;
+    generate_data = nullptr;
+    std::cout << "end of complete callback" << std::endl;
+}
+
+// TODO: Change to async function so that push can be called after return
+napi_value RandSeed::GenerateSequenceStream(napi_env env, napi_callback_info info) {
+    RandSeed* rSeed = GetSelf(env, info);
+
+    // Get min/max/size
+    size_t argc = 4;
+    napi_value args[4];
+    napi_value jsthis;
+    napi_status status = napi_get_cb_info(env, info, &argc, args, &jsthis, nullptr);
+    assert(status == napi_ok);
+
+    // Verify have push function
+    bool has = false;
+    status = napi_has_named_property(env, jsthis, "push", &has);
+    assert(has);
+
+    napi_value async_name;
+    status = napi_create_string_utf8(env, "rand_seed_pipe", NAPI_AUTO_LENGTH, &async_name);
+    assert(status == napi_ok);
+
+    napi_ref jsthis_ref;
+    status = napi_create_reference(env, jsthis, 1, &jsthis_ref);
+    assert(status == napi_ok);
+
+    napi_ref cb_func_ref;
+    status = napi_create_reference(env, args[3], 1, &cb_func_ref);
+    assert(status == napi_ok);
+
+    GenerateData* data = new GenerateData({jsthis_ref, cb_func_ref});
+    napi_async_work work;
+    status = napi_create_async_work(env, nullptr, async_name, &executeFunct, &completeFunc, (void*)data, &work);
+    assert(status == napi_ok);
+
+    napi_queue_async_work(env, work);
+
+    // // Create new arraybuffer uint32_t[]
+    // const uint32_t uint32_buff_size = 4000;
+    // const uint32_t uint8_buff_size = uint32_buff_size*4; // (for uint32_t random numbers)
+
+    // uint32_t* buff = nullptr;
+
+    // napi_value res;
+    // status = napi_create_arraybuffer(env, uint8_buff_size, (void**)&buff, &res);
+    // assert(status == napi_ok);
+
+    // for (uint32_t i = 0; i < uint32_buff_size; i++) {
+    //     buff[i] = i;
+    // }
+
+    // napi_value res2;
+    // status = napi_create_typedarray(env, napi_typedarray_type::napi_uint8_array, uint8_buff_size, res, 0, &res2);
+    // assert(status == napi_ok);
+
+    // napi_value func2;
+    // status = napi_get_named_property(env, jsthis, "push", &func2);
+    // assert(status == napi_ok);
+
+    // napi_value pushResult;
+    // status = napi_call_function(env, jsthis, func2, 1, &res2, &pushResult);
+    // assert(status == napi_ok);
+
+    // status = napi_call_function(env, jsthis, func2, 1, &res2, &pushResult);
+    // assert(status == napi_ok);
+
+    // // NOTE: MUST CALL NULL WHEN FINISHED OR ERROR WILL OCCUR
+    // napi_value null_value;
+    // status = napi_get_null(env, &null_value);
+    // assert(status == napi_ok);
+    // status = napi_call_function(env, jsthis, func2, 1, &null_value, &pushResult);
+    // assert(status == napi_ok);
 
     return nullptr;
 }

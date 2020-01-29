@@ -3,6 +3,13 @@
 #include <node_api.h>
 #include <random>
 
+namespace rand_addon {
+
+struct GenerateData {
+    napi_ref jsthis_ref;
+    napi_ref cb_func_ref;
+};
+
 class RandSeed {
 private:
     explicit RandSeed();
@@ -22,3 +29,5 @@ public:
     static napi_value Init(napi_env env, napi_value exports);
     static void Destructor(napi_env env, void* nativeObject, void* finalize_hint);
 };
+
+}
