@@ -15,6 +15,7 @@ let randSeedAddon = new RandSeed(Readable);
 randSeedAddon.pipe(w);
 randSeedAddon.GenerateSequenceStream(0, 100, 100);// Generate buffer async
 
+console.log('start interval')
 setInterval(() => {
     console.log('hello from JS')
 }, 500)
