@@ -52,12 +52,16 @@ napi_value RandSeed::_read(napi_env env, napi_callback_info info)
 }
 
 napi_value RandSeed::Init(napi_env env, napi_value exports) {
+  // Define addon-level data associated with this instance of the addon.
+  AddonData* addon_data = (AddonData*)malloc(sizeof(*addon_data));
+  addon_data->work = NULL;
+
   napi_status status;
   napi_property_descriptor properties[] = {
     { "_read", 0, _read, 0, 0, 0, napi_default, 0 },
     { "SetSeed", 0, SetSeed, 0, 0, 0, napi_default, 0 },
     { "Generate", 0, Generate, 0, 0, 0, napi_default, 0 },
-    { "GenerateSequenceStream", 0, GenerateSequenceStream, 0, 0, 0, napi_default, 0 }
+    { "GenerateSequenceStream", 0, GenerateSequenceStream, 0, 0, 0, napi_default, addon_data }
   };
   size_t properties_count = sizeof(properties) / sizeof(properties[0]);
 
@@ -345,7 +349,7 @@ napi_value RandSeed::GenerateSequenceStream(napi_env env, napi_callback_info inf
     napi_value args[3];
     napi_value jsthis;
     AddonData* addon_data = new AddonData();
-    napi_status status = napi_get_cb_info(env, info, &argc, args, &jsthis, nullptr);
+    napi_status status = napi_get_cb_info(env, info, &argc, args, &jsthis, (void**)(&addon_data));
     assert(status == napi_ok);
 
     // Ensure that no work is currently in progress.
