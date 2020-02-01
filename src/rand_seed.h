@@ -18,9 +18,6 @@ private:
     static napi_value SetSeed(napi_env env, napi_callback_info info);
     static napi_value Generate(napi_env env, napi_callback_info info);
     static napi_value GenerateSequenceStream(napi_env env, napi_callback_info info);
-
-    // Implement Readable::_read
-    static napi_value _read(napi_env env, napi_callback_info info);
     
     static napi_ref constructor;
     napi_env m_env;

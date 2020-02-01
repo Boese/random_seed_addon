@@ -13,7 +13,7 @@ using namespace rand_addon;
 typedef struct {
   napi_async_work work;
   napi_threadsafe_function tsfn;
-  napi_ref jsthis_ref;
+  napi_ref readable_ref;
 } AddonData;
 
 napi_ref RandSeed::constructor;
@@ -45,23 +45,12 @@ RandSeed* GetSelf(napi_env env, napi_callback_info info) {
     return rSeed;
 }
 
-napi_value RandSeed::_read(napi_env env, napi_callback_info info)
-{
-  // read() should never be called from user code. No-op
-  return nullptr;
-}
-
 napi_value RandSeed::Init(napi_env env, napi_value exports) {
-  // Define addon-level data associated with this instance of the addon.
-  AddonData* addon_data = (AddonData*)malloc(sizeof(*addon_data));
-  addon_data->work = NULL;
-
   napi_status status;
   napi_property_descriptor properties[] = {
-    { "_read", 0, _read, 0, 0, 0, napi_default, 0 },
     { "SetSeed", 0, SetSeed, 0, 0, 0, napi_default, 0 },
     { "Generate", 0, Generate, 0, 0, 0, napi_default, 0 },
-    { "GenerateSequenceStream", 0, GenerateSequenceStream, 0, 0, 0, napi_default, addon_data }
+    { "GenerateSequenceStream", 0, GenerateSequenceStream, 0, 0, 0, napi_default, 0 }
   };
   size_t properties_count = sizeof(properties) / sizeof(properties[0]);
 
@@ -94,13 +83,6 @@ napi_value RandSeed::New(napi_env env, napi_callback_info info) {
     status = napi_get_cb_info(env, info, &argc, args, &jsthis, nullptr);
     assert(status == napi_ok);
 
-    // Argument - expect Readable Function
-    napi_valuetype super_ctor_arg;
-    status = napi_typeof(env, args[0], &super_ctor_arg);
-    assert(status == napi_ok);
-    assert(super_ctor_arg == napi_function);
-    napi_value super_ctor = args[0];
-
     RandSeed* rSeed = new RandSeed();
 
     rSeed->m_env = env;
@@ -111,19 +93,6 @@ napi_value RandSeed::New(napi_env env, napi_callback_info info) {
                        nullptr,
                        &rSeed->m_wrapper);
     assert(status == napi_ok);
-
-    // ctor
-    napi_value ctor;
-    status = napi_get_reference_value(env, constructor, &ctor);
-    
-    // "inherit" from NodeJS Readable
-    status = napi_extensions::napi_inherits(env, info, ctor, super_ctor, 0, nullptr);
-    assert(status == napi_ok);
-
-    // Check push exists from NodeJS Readable
-    bool has = false;
-    status = napi_has_named_property(env, jsthis, "push", &has);
-    assert(has);
     
     return jsthis;
   } else {
@@ -238,12 +207,11 @@ napi_value RandSeed::Generate(napi_env env, napi_callback_info info) {
 }
 
 static void CallJs(napi_env env, napi_value js_cb, void* context, void* data) {
-  std::cout << "CallJs" << std::endl;
+    (void)context; // not used
     AddonData* addon_data = (AddonData*)data;
 
-    napi_ref jsthisref = (napi_ref)data;
-    napi_value jsthis;
-    napi_status status = napi_get_reference_value(env, jsthisref, &jsthis);
+    napi_value readable_instance;
+    napi_status status = napi_get_reference_value(env, addon_data->readable_ref, &readable_instance);
     assert(status == napi_ok);
 
     // Create new arraybuffer uint32_t[]
@@ -264,7 +232,7 @@ static void CallJs(napi_env env, napi_value js_cb, void* context, void* data) {
     status = napi_create_typedarray(env, napi_typedarray_type::napi_uint8_array, uint8_buff_size, res, 0, &res2);
     assert(status == napi_ok);
 
-    status = napi_call_function(env, jsthis, js_cb, 1, &res2, nullptr);
+    status = napi_call_function(env, readable_instance, js_cb, 1, &res2, nullptr);
     assert(status == napi_ok);
 }
 
@@ -275,7 +243,6 @@ static void CallJs(napi_env env, napi_value js_cb, void* context, void* data) {
 // index.ts test proves this
 // NOTE: CANNOT EXECUTE JS IN THIS BLOCK! HAS TO BE DONE FROM TSFN!
 void executeFunct(napi_env env, void* data) {
-  std::cout << "executeFunc" << std::endl;
   AddonData* addon_data = (AddonData*)data;
 
   // We bracket the use of the thread-safe function by this thread by a call to
@@ -287,7 +254,7 @@ void executeFunct(napi_env env, void* data) {
     // Initiate the call into JavaScript. The call into JavaScript will not
     // have happened when this function returns, but it will be queued.
     assert(napi_call_threadsafe_function(addon_data->tsfn,
-                                          addon_data->jsthis_ref,
+                                          addon_data,
                                           napi_tsfn_blocking) == napi_ok);
     std::this_thread::sleep_for (std::chrono::milliseconds(100));
   }
@@ -296,36 +263,30 @@ void executeFunct(napi_env env, void* data) {
   // Indicate that this thread will make no further use of the thread-safe function.
   assert(napi_release_threadsafe_function(addon_data->tsfn,
                                           napi_tsfn_release) == napi_ok);
-
-  std::cout << "executeFunc done" << std::endl;
 }
 
 void completeFunc(napi_env env, napi_status status, void* data) {
-  std::cout << "compleFunc" << std::endl;
     AddonData* addon_data = (AddonData*)data;
 
-    napi_value jsthis;
-    status = napi_get_reference_value(env, addon_data->jsthis_ref, &jsthis);
+    napi_value readable_instance;
+    status = napi_get_reference_value(env, addon_data->readable_ref, &readable_instance);
     assert(status == napi_ok);
 
     napi_value push_func;
-    status = napi_get_named_property(env, jsthis, "push", &push_func);
+    status = napi_get_named_property(env, readable_instance, "push", &push_func);
     assert(status == napi_ok);
 
     // NOTE: MUST CALL NULL WHEN FINISHED OR ERROR WILL OCCUR
-    std::cout << "call push with null" << std::endl;
     napi_value null_value;
     status = napi_get_null(env, &null_value);
     assert(status == napi_ok);
-    status = napi_call_function(env, jsthis, push_func, 1, &null_value, nullptr);
+    status = napi_call_function(env, readable_instance, push_func, 1, &null_value, nullptr);
     assert(status == napi_ok);
     
     uint32_t ref_count;
-    status = napi_reference_unref(env, addon_data->jsthis_ref, &ref_count);
+    status = napi_reference_unref(env, addon_data->readable_ref, &ref_count);
     assert(status == napi_ok);
     assert(ref_count == 0);
-    //free(data);
-    std::cout << "CallJs done" << std::endl;
 
     // Clean up the thread-safe function and the work item associated with this
     // run.
@@ -333,11 +294,17 @@ void completeFunc(napi_env env, napi_status status, void* data) {
                                             napi_tsfn_release) == napi_ok);
     assert(napi_delete_async_work(env, addon_data->work) == napi_ok);
 
-    // Set both values to NULL so JavaScript can order a new run of the thread.
+    // Set values to NULL so JavaScript can order a new run of the thread.
     addon_data->work = NULL;
     addon_data->tsfn = NULL;
-    addon_data->jsthis_ref = NULL;
-    std::cout << "completeFunc done" << std::endl;
+    addon_data->readable_ref = NULL;
+    delete data;
+    data = nullptr;
+}
+
+static napi_value _read(napi_env env, napi_callback_info info)
+{
+  return nullptr;
 }
 
 // TODO: Change to async function so that push can be called after return
@@ -345,15 +312,28 @@ napi_value RandSeed::GenerateSequenceStream(napi_env env, napi_callback_info inf
     RandSeed* rSeed = GetSelf(env, info);
 
     // Get min/max/size
-    size_t argc = 3;
-    napi_value args[3];
+    size_t argc = 1;
+    napi_value args[1];
     napi_value jsthis;
     AddonData* addon_data = new AddonData();
-    napi_status status = napi_get_cb_info(env, info, &argc, args, &jsthis, (void**)(&addon_data));
+    napi_status status = napi_get_cb_info(env, info, &argc, args, &jsthis, nullptr);
     assert(status == napi_ok);
 
-    // Ensure that no work is currently in progress.
-    assert(addon_data->work == NULL && "Only one work item must exist at a time");
+    // create new NodeJS Readable
+    napi_value readable_instance;
+    napi_value readable_options;
+    status = napi_create_object(env, &readable_options);
+    assert(status == napi_ok);
+    status = napi_new_instance(env, args[0], 1, &readable_options, &readable_instance);
+    assert(status == napi_ok);
+
+    // Make sure to implement _read()
+    napi_value _readFn;
+    status = napi_create_function(env, nullptr, 0, _read, nullptr, &_readFn);
+    assert(status == napi_ok);
+
+    status = napi_set_named_property(env, readable_instance, "_read", _readFn);
+    assert(status == napi_ok);
 
     napi_value async_name;
     status = napi_create_string_utf8(env, "generate_async", NAPI_AUTO_LENGTH, &async_name);
@@ -363,11 +343,11 @@ napi_value RandSeed::GenerateSequenceStream(napi_env env, napi_callback_info inf
     status = napi_create_string_utf8(env, "generate_tsfn", NAPI_AUTO_LENGTH, &tsfn_name);
     assert(status == napi_ok);
 
-    status = napi_create_reference(env, jsthis, 1, &addon_data->jsthis_ref);
+    status = napi_create_reference(env, readable_instance, 1, &addon_data->readable_ref);
     assert(status == napi_ok);
     
     napi_value push_func;
-    status = napi_get_named_property(env, jsthis, "push", &push_func);
+    status = napi_get_named_property(env, readable_instance, "push", &push_func);
     assert(status == napi_ok);
 
     // Create thread safe function
@@ -382,7 +362,7 @@ napi_value RandSeed::GenerateSequenceStream(napi_env env, napi_callback_info inf
     status = napi_queue_async_work(env, addon_data->work);
     assert(status == napi_ok);
 
-    return nullptr;
+    return readable_instance;
 }
 
 

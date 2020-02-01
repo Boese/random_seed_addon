@@ -13,6 +13,20 @@ namespace napi_extensions
 @description - This function will prototype chain the child class to the parent class. 
     It will also call the parent class super constructor() with args.
 @returns - napi_status indicated if it suceeded.
+
+example to inherit from NodeJS Readable:
+
+// Argument - expect Readable Function
+napi_value super_ctor = args[0]; <<-- new Addon(Readable)
+
+// ctor
+napi_value ctor; <<-- get ctor of addon self: Addon.h: static napi_ref constructor
+status = napi_get_reference_value(env, constructor, &ctor);
+
+// "inherit" from NodeJS Readable
+status = napi_extensions::napi_inherits(env, info, ctor, super_ctor, 0, nullptr);
+assert(status == napi_ok);
+
 */
 static napi_status napi_inherits(napi_env env,           // Node-api env
                         napi_callback_info info,  // Node-api callback info

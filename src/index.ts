@@ -1,23 +1,34 @@
 let RandSeed = require("./build/Release/random_seed.node").RandSeed
 import { Writable, Readable } from 'stream'
 
+let i = 0;
 let w = new Writable({
     write: (chunk: any, encoding: any, callback: any) => {
         let d = new DataView(chunk.buffer)
         let n = d.getInt32(15996, true)
-        console.log(n);
+        console.log(i++, n);
         callback();
     }
 });
 
-// TODO: Readable stream does not seem to be reusable (one-time use)
-// Need to figure out a way to use it, or switch to something else. Duplex Stream? EventEmitter?
-// Note: Need to make sure all random numbers are created on addon_side synchronously before returning.
-// this way multiple calls can be made, but they sequence won't get out of order (callback part is async)
-// Alternative is only one call is allowed at a time to the class (to maintain order)
+// TODO: Readable stream does not seem to be reusable (one-time use) DONE
+// Need to make sure class pushes same order every time. One idea below
+/*
+    Upon create of addon -> generate 10000 random numbers in a buffer.
+    Each time generateSequence is called use 1 random number in buffer to create new std::random_device and use that inside instance of readable
+    Each time generate is called just return the random number from global buffer
+    This should be faster, use less memory, but more complex ie rng per call, but destroyed upon exit
+*/
+
+// Other idea below
+/*
+    Every time generateSequence is called, generate all the numbers needed synchronously. Then asynchronously start returning numbers
+    This will be slower but simpler ie only one std::rng per class
+
+*/
 // 
-// ex: generate, generate, generate
-// - should always get back the same random numbers (1,2,3,4,5,etc...) even though they won't receive them at same time/order as before
+// ex: async generate, async generate, async generate
+// - should always get back the same random numbers (1,2,3,4,5,etc...) even though they might not receive them at same time/order as before
 //
 // usecase:
 /*
@@ -33,9 +44,12 @@ let w = new Writable({
 */
 
 // RandSeed to inherit from Readable
-let randSeedAddon = new RandSeed(Readable);
-randSeedAddon.pipe(w);
-randSeedAddon.GenerateSequenceStream(0, 100, 100);// Generate buffer async
+let randSeedAddon = new RandSeed();
+randSeedAddon.GenerateSequenceStream(Readable).pipe(w, {end: false});
+randSeedAddon.GenerateSequenceStream(Readable).pipe(w, {end: false});
+randSeedAddon.GenerateSequenceStream(Readable).pipe(w, {end: false});
+randSeedAddon.GenerateSequenceStream(Readable).pipe(w, {end: false});
+randSeedAddon.GenerateSequenceStream(Readable).pipe(w, {end: false});
 
 console.log('start interval')
 setInterval(() => {
