@@ -1,4 +1,5 @@
-let RandSeed = require("./build/Release/random_seed.node").RandSeed
+//let RandSeed = require("./build/Debug/random_seed.node").RandSeed
+let RandSeed = require("./random_seed.node").RandSeed
 import { Writable, Readable } from 'stream'
 
 let i = 0;
@@ -24,7 +25,6 @@ let w = new Writable({
 /*
     Every time generateSequence is called, generate all the numbers needed synchronously. Then asynchronously start returning numbers
     This will be slower but simpler ie only one std::rng per class
-
 */
 // 
 // ex: async generate, async generate, async generate
@@ -45,6 +45,8 @@ let w = new Writable({
 
 // RandSeed to inherit from Readable
 let randSeedAddon = new RandSeed();
+randSeedAddon.SetSeed(10);
+console.log(randSeedAddon.Generate(0,10));
 randSeedAddon.GenerateSequenceStream(Readable).pipe(w, {end: false});
 randSeedAddon.GenerateSequenceStream(Readable).pipe(w, {end: false});
 randSeedAddon.GenerateSequenceStream(Readable).pipe(w, {end: false});

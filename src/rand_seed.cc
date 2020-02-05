@@ -9,6 +9,7 @@
 #include <chrono>
 
 using namespace rand_addon;
+using namespace napi_extensions;
 
 typedef struct {
   napi_async_work work;
@@ -21,7 +22,6 @@ napi_ref RandSeed::constructor;
 RandSeed::RandSeed() : m_generator(std::make_unique<std::mt19937>(std::random_device{}())) {}
 
 RandSeed::~RandSeed() {
-    m_generator.reset();
     napi_delete_reference(m_env, m_wrapper);
 }
 
@@ -31,22 +31,7 @@ void RandSeed::Destructor(napi_env env,
   reinterpret_cast<RandSeed*>(nativeObject)->~RandSeed();
 }
 
-// TODO: Put this in helper lib (for future projects). Other generic methods too like Init, New, Destructor
-RandSeed* GetSelf(napi_env env, napi_callback_info info) {
-    napi_status status;
-
-    napi_value jsthis;
-    status = napi_get_cb_info(env, info, nullptr, nullptr, &jsthis, nullptr);
-    assert(status == napi_ok);
-
-    RandSeed* rSeed;
-    status = napi_unwrap(env, jsthis, reinterpret_cast<void**>(&rSeed));
-
-    return rSeed;
-}
-
 napi_value RandSeed::Init(napi_env env, napi_value exports) {
-  napi_status status;
   napi_property_descriptor properties[] = {
     { "SetSeed", 0, SetSeed, 0, 0, 0, napi_default, 0 },
     { "Generate", 0, Generate, 0, 0, 0, napi_default, 0 },
@@ -55,24 +40,17 @@ napi_value RandSeed::Init(napi_env env, napi_value exports) {
   size_t properties_count = sizeof(properties) / sizeof(properties[0]);
 
   napi_value cons;
-  status = napi_define_class(
-      env, "RandSeed", NAPI_AUTO_LENGTH, New, nullptr, properties_count, properties, &cons);
-  assert(status == napi_ok);
+  CheckStatus(napi_define_class(env, "RandSeed", NAPI_AUTO_LENGTH, New, nullptr, properties_count, properties, &cons), env, "Define class");
+  CheckStatus(napi_create_reference(env, cons, 1, &constructor), env, "Create class reference");
+  CheckStatus(napi_set_named_property(env, exports, "RandSeed", cons), env, "Set ctor property");
 
-  status = napi_create_reference(env, cons, 1, &constructor);
-  assert(status == napi_ok);
-
-  status = napi_set_named_property(env, exports, "RandSeed", cons);
-  assert(status == napi_ok);
   return exports;
 }
 
 napi_value RandSeed::New(napi_env env, napi_callback_info info) {
   napi_status status;
-
   napi_value target;
-  status = napi_get_new_target(env, info, &target);
-  assert(status == napi_ok);
+  CheckStatus(napi_get_new_target(env, info, &target), env, "New::get_target");
   bool is_constructor = target != nullptr;
 
   if (is_constructor) {
@@ -116,38 +94,22 @@ napi_value RandSeed::New(napi_env env, napi_callback_info info) {
 
 
 napi_value RandSeed::SetSeed(napi_env env, napi_callback_info info) {
-
-  napi_status status;
-
-  RandSeed* rSeed = GetSelf(env, info);
+  RandSeed* rSeed = GetSelf<RandSeed>(env, info);
 
   // Get seed if specified. If not use std::random_device()
   size_t argc = 1;
-  napi_value args[1];
-  status = napi_get_cb_info(env, info, &argc, args, nullptr, nullptr);
-  assert(status == napi_ok);
+  CheckStatus(napi_get_cb_info(env, info, &argc, nullptr, nullptr, nullptr), env, "SetSeed() get cb info");
 
-  if (argc > 0) {
-
-    napi_valuetype valuetype0;
-    status = napi_typeof(env, args[0], &valuetype0);
-    assert(status == napi_ok);
-
-    if (valuetype0 != napi_number) {
-        napi_throw_type_error(env, nullptr, "Wrong arguments. Expected number for seed");
-        return nullptr;
-    }
-
-    int seed;
-    status = napi_get_value_int32(env, args[0], &seed);
-    assert(status == napi_ok);
-
-    std::cout << "Seed generator with seed: " << seed << std::endl;
-    rSeed->m_generator->seed(seed);
-  } 
-  else {
+  if (argc == 0) {
     std::cout << "Seed generator with random_device" << std::endl;
     rSeed->m_generator->seed(std::random_device{}());
+  } 
+  else {
+    std::cout << "Seed generator with seed " << std::endl;
+    NapiU32 arg0;
+    GetArgs(env, info, arg0);
+    rSeed->m_generator->seed(arg0.GetVal());
+    std::cout << "Seed: " << arg0.GetVal() << std::endl;
   }
 
   return nullptr;
@@ -155,41 +117,15 @@ napi_value RandSeed::SetSeed(napi_env env, napi_callback_info info) {
 
 //TODO: Create arg type checker helper function
 napi_value RandSeed::Generate(napi_env env, napi_callback_info info) {
-    RandSeed* rSeed = GetSelf(env, info);
+    RandSeed* rSeed = GetSelf<RandSeed>(env, info);
 
-    // Get min/max
-    size_t argc = 2;
-    napi_value args[2];
-    napi_status status = napi_get_cb_info(env, info, &argc, args, nullptr, nullptr);
-    assert(status == napi_ok);
-
-    if (argc < 2) {
-        napi_throw_type_error(env, nullptr, "Wrong number of arguments");
-        return nullptr;
-    }
-
-    napi_valuetype valuetype0;
-    status = napi_typeof(env, args[0], &valuetype0);
-    assert(status == napi_ok);
-
-    napi_valuetype valuetype1;
-    status = napi_typeof(env, args[1], &valuetype1);
-    assert(status == napi_ok);
-
-    if (valuetype0 != napi_number || valuetype1 != napi_number) {
-        napi_throw_type_error(env, nullptr, "Wrong arguments");
-        return nullptr;
-    }
-
-    int32_t min;
-    status = napi_get_value_int32(env, args[0], &min);
-    assert(status == napi_ok);
-
-    int32_t max;
-    status = napi_get_value_int32(env, args[1], &max);
-    assert(status == napi_ok);
+    NapiU32 arg0, arg1;
+    GetArgs(env, info, arg0, arg1);
+    uint32_t min = arg0.GetVal();
+    uint32_t max = arg1.GetVal();
 
     if (max < min) {
+      // TODO: Replace all errors with this call
         napi_throw_type_error(env, nullptr, "Max < Min. Min value must be less than Max");
         return nullptr;
     }
@@ -309,7 +245,7 @@ static napi_value _read(napi_env env, napi_callback_info info)
 
 // TODO: Change to async function so that push can be called after return
 napi_value RandSeed::GenerateSequenceStream(napi_env env, napi_callback_info info) {
-    RandSeed* rSeed = GetSelf(env, info);
+    RandSeed* rSeed = GetSelf<RandSeed>(env, info);
 
     // Get min/max/size
     size_t argc = 1;
