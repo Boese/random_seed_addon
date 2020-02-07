@@ -8,6 +8,7 @@
 #include <string>
 #include <iostream>
 #include <memory>
+#include <array>
 
 namespace napi_extensions
 {
@@ -33,18 +34,22 @@ inline void CheckStatus(napi_status status, napi_env env, const std::string& mes
 /*
     Get and validate napi_callback_info_arguments
 */
-// class NapiArgValidator {
-// public:
-//     virtual bool SetVal(napi_env env, napi_value value) = 0;
-// };
-
-class NapiU32 { // : public NapiArgValidator {
-private:
-    std::shared_ptr<uint32_t> _val;
+template<typename T>
+class NapiArgValidator {
 public:
-    NapiU32() : _val(std::make_shared<uint32_t>()) {}
+    virtual bool SetVal(napi_env env, napi_value value) = 0;
+    virtual T GetVal() = 0;
+};
 
-    bool SetVal(napi_env env, napi_value value)
+// TODO: Templatize this class to handle any numbers
+// TODO: Create more for string, arrays, bool, dates
+class NapiU32 : public NapiArgValidator<uint32_t> {
+private:
+    uint32_t _val;
+public:
+
+    // TODO: Return error
+    bool SetVal(napi_env env, napi_value value) override
     {
         napi_valuetype type;
         CheckStatus(napi_typeof(env, value, &type), env, "Failed to get napi typeof");
@@ -52,13 +57,15 @@ public:
             return false;
         }
 
-        CheckStatus(napi_get_value_uint32(env, value, _val.get()), env, "Failed to get uint32_t value");
+        uint32_t result;
+        CheckStatus(napi_get_value_uint32(env, value, &result), env, "Failed to get uint32_t value");
+        _val = result;
         return true;
     }
 
-    uint32_t GetVal()
+    uint32_t GetVal() override
     {
-        return *_val;
+        return _val;
     }
 };
 
@@ -81,8 +88,6 @@ void GetArgs(napi_env env, napi_callback_info info, Args ...args)
 {
     const std::size_t n = sizeof...(Args);
     size_t argc = n;
-
-    // TODO: Change to std::array
     napi_value* argv = new napi_value[argc];
     CheckStatus(napi_get_cb_info(env, info, &argc, argv, nullptr, nullptr), env, "Failed to get cb info. napi_extensions::GetArgs");
     assert(argc == n && "invalid number of arguments");

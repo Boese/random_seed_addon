@@ -91,8 +91,6 @@ napi_value RandSeed::New(napi_env env, napi_callback_info info) {
   }
 }
 
-
-
 napi_value RandSeed::SetSeed(napi_env env, napi_callback_info info) {
   RandSeed* rSeed = GetSelf<RandSeed>(env, info);
 
@@ -115,7 +113,6 @@ napi_value RandSeed::SetSeed(napi_env env, napi_callback_info info) {
   return nullptr;
 }
 
-//TODO: Create arg type checker helper function
 napi_value RandSeed::Generate(napi_env env, napi_callback_info info) {
     RandSeed* rSeed = GetSelf<RandSeed>(env, info);
 
