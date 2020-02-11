@@ -9,6 +9,7 @@
 #include <iostream>
 #include <memory>
 #include <array>
+#include <type_traits>
 
 namespace napi_extensions
 {
@@ -37,54 +38,67 @@ inline void CheckStatus(napi_status status, napi_env env, const std::string& mes
 template<typename T>
 class NapiArgValidator {
 public:
-    virtual bool SetVal(napi_env env, napi_value value) = 0;
+    virtual void SetVal(napi_env env, napi_value value) = 0;
     virtual T GetVal() = 0;
 };
 
-// TODO: Templatize this class to handle any numbers
-// TODO: Create more for string, arrays, bool, dates
-class NapiU32 : public NapiArgValidator<uint32_t> {
-private:
-    uint32_t _val;
-public:
+template<typename T>
+class NapiArgNumber : public NapiArgValidator<T> {
+protected:
+    T _val;
 
-    // TODO: Return error
-    bool SetVal(napi_env env, napi_value value) override
-    {
+    void CheckNumber(napi_env env, napi_value value) {
         napi_valuetype type;
         CheckStatus(napi_typeof(env, value, &type), env, "Failed to get napi typeof");
-        if (type != napi_number) {
-            return false;
-        }
-
-        uint32_t result;
-        CheckStatus(napi_get_value_uint32(env, value, &result), env, "Failed to get uint32_t value");
-        _val = result;
-        return true;
+        assert(type == napi_number && "Argument invalid. Expecting number!");
     }
 
-    uint32_t GetVal() override
+public:
+    T GetVal() override
     {
         return _val;
     }
 };
 
+class NapiArgUint32 : public NapiArgNumber<uint32_t> {
+public:
+    void SetVal(napi_env env, napi_value value) override
+    {
+        CheckNumber(env, value);
+        uint32_t result;
+        CheckStatus(napi_get_value_uint32(env, value, &result), env, "Failed to get uint32 value");
+        _val = result;
+    }
+};
+
+class NapiArgInt64 : public NapiArgNumber<int64_t> {
+public:
+    void SetVal(napi_env env, napi_value value) override
+    {
+        CheckNumber(env, value);
+        int64_t result;
+        CheckStatus(napi_get_value_int64(env, value, &result), env, "Failed to get int64 value");
+        _val = result;
+    }
+};
+
+
 // TODO: Hide these templates
 template<typename T>
-void _GetArgs(napi_env env, napi_callback_info info, napi_value* argv, size_t& argv_index, T arg)
+void _GetArgs(napi_env env, napi_callback_info info, napi_value* argv, size_t& argv_index, T& arg)
 {
     arg.SetVal(env, argv[argv_index]);
 }
 
 template<typename T, typename ...Args>
-void _GetArgs(napi_env env, napi_callback_info info, napi_value* argv, size_t& argv_index, T arg, Args ...args)
+void _GetArgs(napi_env env, napi_callback_info info, napi_value* argv, size_t& argv_index, T& arg, Args& ...args)
 {
     arg.SetVal(env, argv[argv_index]);
     _GetArgs(env, info, argv, ++argv_index, args...);
 }
 
 template<typename ...Args>
-void GetArgs(napi_env env, napi_callback_info info, Args ...args)
+void GetArgs(napi_env env, napi_callback_info info, Args& ...args)
 {
     const std::size_t n = sizeof...(Args);
     size_t argc = n;
