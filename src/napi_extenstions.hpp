@@ -82,8 +82,6 @@ public:
     }
 };
 
-
-// TODO: Hide these templates
 template<typename T>
 void _GetArgs(napi_env env, napi_callback_info info, napi_value* argv, size_t& argv_index, T& arg)
 {

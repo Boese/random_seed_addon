@@ -6,10 +6,6 @@
 
 namespace rand_addon {
 
-struct GenerateData {
-    napi_ref jsthis_ref;
-};
-
 class RandSeedStream /* extends Node JS Readable */ {
 private:
     std::unique_ptr<std::mt19937> m_generator;
@@ -17,23 +13,13 @@ private:
     int64_t m_max;
     uint32_t m_count;
 
-    struct AsyncGenerateData {
-        napi_async_work work;
-        napi_threadsafe_function tsfn;
-        napi_ref readable_ref;
-    };
-
-    RandSeedStream(napi_ref readableCtor, int64_t seed, int64_t min, int64_t max, uint32_t count, napi_value* instance);
-    ~RandSeedStream();
-
-    static napi_ref constructor;
-    napi_env env_;
-    napi_ref wrapper_;
+    explicit RandSeedStream(int64_t seed, int64_t min, int64_t max, uint32_t count)
+        : m_generator(std::make_unique<std::mt19937>(seed)), m_min(min), m_max(max), m_count(count) {}
 
 public:
-    static void NewInstance(napi_env env, napi_ref readableCtor, int64_t seed, int64_t min, int64_t max, uint32_t count, napi_value* instance);
-    static napi_status Init(napi_env env);
-    static void Destructor(napi_env env, void* nativeObject, void* finalize_hint);
+    /// \brief Instantiate class either using new or function() syntax
+    /// \return this
+    static napi_value NewInstance(napi_env env, napi_ref readableCtorRef, int64_t seed, int64_t min, int64_t max, uint32_t count);
 };
 
 }

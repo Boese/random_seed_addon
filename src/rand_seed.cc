@@ -1,5 +1,7 @@
 #include "rand_seed.h"
+#include "rand_seed_stream.h"
 #include "napi_extenstions.hpp"
+
 #include <node_api.h>
 #include <assert.h>
 #include <random>
@@ -24,7 +26,7 @@ napi_value RandSeed::SetReadable(napi_env env, napi_callback_info info)
   return nullptr;
 }
 
-RandSeed::RandSeed() : m_generator(std::make_unique<std::mt19937>(std::random_device{}())), m_globalBuffer() {}
+RandSeed::RandSeed() : m_generator(std::make_unique<std::mt19937>(std::random_device{}())) {}
 
 RandSeed::~RandSeed() {
     napi_delete_reference(m_env, m_wrapper);
@@ -107,33 +109,21 @@ napi_value RandSeed::SetSeed(napi_env env, napi_callback_info info) {
 
   if (argc == 0) {
     std::cout << "Seed generator with random_device" << std::endl;
-    rSeed->m_generator->seed(std::random_device{}());
+    auto seed = std::random_device{}();
+    rSeed->m_generator->seed(seed);
+    RandSeed::GlobalBuffer::SetSeed(seed);
   } 
   else {
     std::cout << "Seed generator with seed " << std::endl;
     NapiArgInt64 arg0;
     GetArgs(env, info, arg0);
-    rSeed->m_generator->seed(arg0.GetVal());
-    std::cout << "Seed: " << arg0.GetVal() << std::endl;
+    int64_t seed = arg0.GetVal();
+    rSeed->m_generator->seed(seed);
+    RandSeed::GlobalBuffer::SetSeed(seed);
+    std::cout << "Seed: " << seed << std::endl;
   }
 
   return nullptr;
-}
-
-// TODO: This is not random numbers to return. This is a sequence of "fake" seeds to use when SetSeed() is called.
-// Use this as the seed to the actual m_generator
-static const uint64_t GlobalBufferMax = 1000;
-int64_t RandSeed::GetNextFromBuffer()
-{
-  // Generate random number
-  static std::uniform_int_distribution<int64_t> distribution(std::numeric_limits<int64_t>::min(), std::numeric_limits<int64_t>::max());
-  if (m_globalBuffer.empty()) {
-    for (size_t i = 0; i < GlobalBufferMax; i++) {
-      m_globalBuffer.push(distribution(*m_generator));
-    }
-  }
-
-  return m_globalBuffer.front();
 }
 
 napi_value RandSeed::Generate(napi_env env, napi_callback_info info) {
@@ -149,19 +139,19 @@ napi_value RandSeed::Generate(napi_env env, napi_callback_info info) {
         napi_throw_type_error(env, nullptr, "Max < Min. Min value must be less than Max");
         return nullptr;
     }
+    
+    std::uniform_int_distribution<int64_t> distribution(min, max);
 
     napi_value result;
-    assert(napi_create_int64(env,
-                        rSeed->GetNextFromBuffer(),
-                        &result) == napi_ok);
+    CheckStatus(napi_create_int64(env, distribution(*rSeed->m_generator), &result), 
+      env, "Failed to create int64");
 
-    // Return the JavaScript integer back to JavaScript.
     return result;
 }
 
 // TODO: Change to async function so that push can be called after return
 napi_value RandSeed::GenerateSequenceStream(napi_env env, napi_callback_info info) {
-    //RandSeed* rSeed = GetSelf<RandSeed>(env, info);
+    RandSeed* rSeed = GetSelf<RandSeed>(env, info);
 
     NapiArgInt64 arg0, arg1;
     NapiArgUint32 arg2;
@@ -171,20 +161,16 @@ napi_value RandSeed::GenerateSequenceStream(napi_env env, napi_callback_info inf
     int64_t max = arg1.GetVal();
     uint32_t count = arg2.GetVal();
 
-    // get seed off global
-    //int64_t seed = m_globalBuffer.front();
+    // get thread-safe seed off global
+    int64_t seed = RandSeed::GlobalBuffer::Next();
 
-    // return new RandSeedStream(Readable, seed, min, max, count);
-    // napi_value instance;
-    // CheckStatus(RandSeedStream::NewInstance(m_readableCtor, seed, min, max, count, &instance), "Failed to create new RandSeedStream");
-
-    // return instance;
-    return nullptr;
+    // Return new instance of RandSeedStream
+    return RandSeedStream::NewInstance(env, rSeed->m_readableCtor, seed, min, max, count);
 }
-
 
 /* Register this as an ES Module */
 napi_value Init(napi_env env, napi_value exports) {
+  // TODO: Pass exports?
   return RandSeed::Init(env, exports);
 }
 

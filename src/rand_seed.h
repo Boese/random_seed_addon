@@ -55,18 +55,68 @@ private:
     napi_ref m_wrapper;
     // the RNG
     std::unique_ptr<std::mt19937> m_generator;
-    // Global buffer of random numbers to use for generate, or creating new sequence streams
-    std::queue<int64_t> m_globalBuffer;
-    
+
+    /// \brief Singleton queue of int64_t of random numbers for async sequence calls
+    class GlobalBuffer {
+        static const uint64_t BufferMax{1000};
+
+        static std::queue<int64_t>& GetBuffer()
+        {
+            static std::queue<int64_t> globalBuffer{};
+            return globalBuffer;
+        }
+
+        static std::mt19937& GetGenerator()
+        {
+            static std::mt19937 generator{std::random_device{}()};
+            return generator;
+        }
+
+        static std::uniform_int_distribution<int64_t>& GetDistribution()
+        {
+            static std::uniform_int_distribution<int64_t> distribution(
+                std::numeric_limits<int64_t>::min(), std::numeric_limits<int64_t>::max());
+            return distribution;
+        }
+
+        static void FillBuffer()
+        {
+            // Clear buffer
+            static std::queue<int64_t> empty{};
+            auto& buffer = GetBuffer();
+            buffer.swap(empty);
+
+            auto& distribution = GetDistribution();
+            auto& generator = GetGenerator();
+
+            // Fill Buffer
+            for (size_t i = 0; i < BufferMax; i++) {
+                buffer.push(distribution(generator));
+            }
+        }
+
+    public:
+        static void SetSeed(int64_t seed) {
+            auto& buffer = GetBuffer();
+            GetGenerator().seed(seed);
+            FillBuffer();
+        }
+
+        static int64_t Next() {
+            auto& buffer = GetBuffer();
+            if (buffer.empty()) {
+                FillBuffer();
+            }
+            return buffer.front();
+        }
+    };
+
 public:
     /// \brief Module init function
     static napi_value Init(napi_env env, napi_value exports);
 
     /// \brief Calls ~Destructor()
     static void Destructor(napi_env env, void* nativeObject, void* finalize_hint);
-
-    /// \brief pop front from m_globalBuffer. If empty, refills
-    int64_t GetNextFromBuffer();
 };
 
 }

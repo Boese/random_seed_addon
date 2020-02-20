@@ -3,15 +3,15 @@ let RandSeed = require("./random_seed.node").RandSeed
 import { Writable, Readable } from 'stream'
 RandSeed.SetReadable(Readable) // required
 
-// let i = 0;
-// let w = new Writable({
-//     write: (chunk: any, encoding: any, callback: any) => {
-//         let d = new DataView(chunk.buffer)
-//         let n = d.getInt32(15996, true)
-//         console.log(i++, n);
-//         callback();
-//     }
-// });
+let i = 0;
+let w = new Writable({
+    write: (chunk: any, encoding: any, callback: any) => {
+        let d = new DataView(chunk.buffer)
+        let n = d.getInt32(15996, true)
+        console.log(i++, n);
+        callback();
+    }
+});
 
 // TODO: Readable stream does not seem to be reusable (one-time use) DONE
 // Need to make sure class pushes same order every time. One idea below
@@ -48,13 +48,13 @@ RandSeed.SetReadable(Readable) // required
 let randSeedAddon = new RandSeed();
 randSeedAddon.SetSeed(2);
 console.log(randSeedAddon.Generate(0,10));
-// randSeedAddon.GenerateSequenceStream(Readable).pipe(w, {end: false});
-// randSeedAddon.GenerateSequenceStream(Readable).pipe(w, {end: false});
-// randSeedAddon.GenerateSequenceStream(Readable).pipe(w, {end: false});
-// randSeedAddon.GenerateSequenceStream(Readable).pipe(w, {end: false});
-// randSeedAddon.GenerateSequenceStream(Readable).pipe(w, {end: false});
+randSeedAddon.GenerateSequenceStream(0, 10, 10).pipe(w, {end: false});
+randSeedAddon.GenerateSequenceStream(0, 10, 10).pipe(w, {end: false});
+randSeedAddon.GenerateSequenceStream(0, 10, 10).pipe(w, {end: false});
+randSeedAddon.GenerateSequenceStream(0, 10, 10).pipe(w, {end: false});
+randSeedAddon.GenerateSequenceStream(0, 10, 10).pipe(w, {end: false});
 
-// console.log('start interval')
-// setInterval(() => {
-//     console.log('hello from JS')
-// }, 500)
+console.log('start interval')
+setInterval(() => {
+    console.log('hello from JS')
+}, 500)
