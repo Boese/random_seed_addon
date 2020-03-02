@@ -1,29 +1,60 @@
+//let RandSeed = require("./build/Debug/random_seed.node").RandSeed
+let RandSeed = require("./random_seed.node").RandSeed
+import { Writable, Readable } from 'stream'
+RandSeed.SetReadable(Readable) // required
 
-export class RandomGenerator {
-    private _r:any;
-    constructor() {
-        // NOTE: Required to reload module multiple times
-        delete require.cache[require.resolve(`./build/Release/random_seed.node`)]
-        this._r = require(`./build/Release/random_seed.node`);
+let i = 0;
+let w = new Writable({
+    write: (chunk: any, encoding: any, callback: any) => {
+        let d = new DataView(chunk.buffer)
+        let n = d.getInt32(15996, true)
+        console.log(i++, n);
+        callback();
     }
+});
 
-    seed(seed?: number): void {
-        this._r.seed(seed);
-    }
+// TODO: Readable stream does not seem to be reusable (one-time use) DONE
+// Need to make sure class pushes same order every time. One idea below
+/*
+    Upon create of addon -> generate 10000 random numbers in a buffer.
+    Each time generateSequence is called use 1 random number in buffer to create new std::random_device and use that inside instance of readable
+    Each time generate is called just return the random number from global buffer
+    This should be faster, use less memory, but more complex ie rng per call, but destroyed upon exit
+*/
 
-    generate(min: number, max: number) : number {
-        return this._r.generate(min, max);
-    } 
+// Other idea below
+/*
+    Every time generateSequence is called, generate all the numbers needed synchronously. Then asynchronously start returning numbers
+    This will be slower but simpler ie only one std::rng per class
+*/
+// 
+// ex: async generate, async generate, async generate
+// - should always get back the same random numbers (1,2,3,4,5,etc...) even though they might not receive them at same time/order as before
+//
+// usecase:
+/*
+    let random_numbers = [];
+    addon.GenerateSequenceStream(0, 100, 100); <<-- This should probably return a Readable object (one-time use)
+    for await(const chunk : addon.GenerateSequenceSstream(0, 100, 100))
+        random_numbers.push_back chunk
+    
+    ...
 
-    sequence(min: number, max: number, size: number): Array<Number> {
-        let result: Array<Number> = [];
-        let sequence_buffer: ArrayBuffer = this._r.sequence(min, max, size);
-        let sequence_buffer_dataview:DataView = new DataView(sequence_buffer);
+    Fill them again or fill a different one calling GenerateSequence again
+    
+*/
 
-        for (let i = 0; i < size*4; i+=4) {
-            result.push(sequence_buffer_dataview.getInt32(i, true));
-        }
+// RandSeed to inherit from Readable
+let randSeedAddon = new RandSeed();
+randSeedAddon.SetSeed(2);
+console.log(randSeedAddon.Generate(0,10));
+randSeedAddon.GenerateSequenceStream(0, 10, 10).pipe(w, {end: true});
+// randSeedAddon.GenerateSequenceStream(0, 10, 10).pipe(w, {end: false});
+// randSeedAddon.GenerateSequenceStream(0, 10, 10).pipe(w, {end: false});
+// randSeedAddon.GenerateSequenceStream(0, 10, 10).pipe(w, {end: false});
+// randSeedAddon.GenerateSequenceStream(0, 10, 10).pipe(w, {end: false});
 
-        return result;
-    }
-}
+console.log('start interval')
+setInterval(() => {
+    console.log('hello from JS')
+}, 10)

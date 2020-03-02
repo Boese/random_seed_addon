@@ -1,251 +1,177 @@
-#include <node_api.h>
+#include "rand_seed.h"
+#include "rand_seed_stream.h"
+#include "napi_extenstions.hpp"
 
+#include <node_api.h>
 #include <assert.h>
 #include <random>
 #include <iostream>
-#include <time.h>
-#include <cstring>
-#include <memory>
+#include <string>
+#include <thread>
+#include <chrono>
 
-struct AddonData {
-  std::mt19937* generator;
-};
+using namespace rand_addon;
+using namespace napi_extensions;
 
-static void DeleteAddonData(napi_env env, void* data, void* hint) {
-  // Avoid unused parameter warnings.
-  (void) env;
-  (void) hint;
+napi_ref RandSeed::m_constructor;
+napi_ref RandSeed::m_readableCtor;
 
-  // Free the per-addon-instance data.
-  AddonData* result = static_cast<AddonData*>(data);
-  if (result) {
-    if (result->generator) {
-      delete result->generator;
-      result->generator = nullptr;
-    }
-    delete result;
-    result = nullptr;
+napi_value RandSeed::SetReadable(napi_env env, napi_callback_info info)
+{
+  size_t argc = 1;
+  napi_value args[1];
+  CheckStatus(napi_get_cb_info(env, info, &argc, args, nullptr, nullptr), env, "Failed to get callback info in SetReadable");
+  CheckStatus(napi_create_reference(env, args[0], 1, &m_readableCtor), env, "Failed to create NodeJS Readable reference");
+  std::cout << "SetReadable" << std::endl;
+  return nullptr;
+}
+
+RandSeed::RandSeed() : m_generator(std::make_unique<std::mt19937>(std::random_device{}())) {}
+
+RandSeed::~RandSeed() {
+    napi_delete_reference(m_env, m_wrapper);
+}
+
+void RandSeed::Destructor(napi_env env,
+                          void* nativeObject,
+                          void* /*finalize_hint*/) {
+  reinterpret_cast<RandSeed*>(nativeObject)->~RandSeed();
+}
+
+napi_value RandSeed::Init(napi_env env, napi_value exports) {
+  napi_property_descriptor properties[] = {
+    { "SetReadable", 0, SetReadable, 0, 0, 0, napi_static, 0 },
+    { "SetSeed", 0, SetSeed, 0, 0, 0, napi_default, 0 },
+    { "Generate", 0, Generate, 0, 0, 0, napi_default, 0 },
+    { "GenerateSequenceStream", 0, GenerateSequenceStream, 0, 0, 0, napi_default, 0 }
+  };
+  size_t properties_count = sizeof(properties) / sizeof(properties[0]);
+
+  napi_value cons;
+  CheckStatus(napi_define_class(env, "RandSeed", NAPI_AUTO_LENGTH, New, nullptr, properties_count, properties, &cons), env, "Define class");
+  CheckStatus(napi_create_reference(env, cons, 1, &m_constructor), env, "Create class reference");
+  CheckStatus(napi_set_named_property(env, exports, "RandSeed", cons), env, "Set ctor property");
+
+  return exports;
+}
+
+napi_value RandSeed::New(napi_env env, napi_callback_info info) {
+  assert(m_readableCtor != nullptr && "Must call SetReadable(Readable) before using class!");
+  napi_status status;
+  napi_value target;
+  CheckStatus(napi_get_new_target(env, info, &target), env, "New::get_target");
+  bool is_constructor = target != nullptr;
+
+  if (m_constructor) {
+    // Invoked as constructor: `new RandSeed()`
+    napi_value jsthis;
+    size_t argc = 1;
+    napi_value args[1];
+    status = napi_get_cb_info(env, info, &argc, args, &jsthis, nullptr);
+    assert(status == napi_ok);
+
+    RandSeed* rSeed = new RandSeed();
+
+    rSeed->m_env = env;
+    status = napi_wrap(env,
+                       jsthis,
+                       reinterpret_cast<void*>(rSeed),
+                       RandSeed::Destructor,
+                       nullptr,
+                       &rSeed->m_wrapper);
+    assert(status == napi_ok);
+    
+    return jsthis;
+  } else {
+    std::cout << "Invoked as plain function" << std::endl;
+    // Invoked as plain function `RandSeed()`, turn into construct call.
+    status = napi_get_cb_info(env, info, nullptr, nullptr, nullptr, nullptr);
+    assert(status == napi_ok);
+
+    napi_value cons;
+    status = napi_get_reference_value(env, m_constructor, &cons);
+    assert(status == napi_ok);
+
+    napi_value instance;
+    status = napi_new_instance(env, cons, 0, nullptr, &instance);
+    assert(status == napi_ok);
+
+    return instance;
   }
 }
 
-static AddonData* CreateAddonData(napi_env env, napi_value exports) {
-  std::cout << "New AddonData instance" << std::endl;
-  AddonData* result = new AddonData();
-  result->generator = new std::mt19937(std::random_device{}());
-
-  assert(napi_wrap(env,
-                   exports,
-                   result,
-                   DeleteAddonData,
-                   NULL,
-                   NULL) == napi_ok);
-  return result;
-}
-
-static AddonData* GetAddonData(napi_env env, napi_callback_info info)
-{
-  // Retrieve the per-addon-instance data.
-  AddonData* addon_data = NULL;
-  assert(napi_get_cb_info(env,
-                          info,
-                          NULL,
-                          NULL,
-                          NULL,
-                          ((void**)&addon_data)) == napi_ok);
-
-  return addon_data;
-}
-
-/// Specify seed for generator. Expect 1 arg for seed
-static napi_value SetSeed(napi_env env, napi_callback_info info) {
-
-  auto addon_data = GetAddonData(env, info);
-  napi_status status;
+napi_value RandSeed::SetSeed(napi_env env, napi_callback_info info) {
+  RandSeed* rSeed = GetSelf<RandSeed>(env, info);
 
   // Get seed if specified. If not use std::random_device()
   size_t argc = 1;
-  napi_value args[1];
-  status = napi_get_cb_info(env, info, &argc, args, nullptr, nullptr);
-  assert(status == napi_ok);
+  CheckStatus(napi_get_cb_info(env, info, &argc, nullptr, nullptr, nullptr), env, "SetSeed() get cb info");
 
-  if (argc > 0) {
-
-    napi_valuetype valuetype0;
-    status = napi_typeof(env, args[0], &valuetype0);
-    assert(status == napi_ok);
-
-    if (valuetype0 != napi_number) {
-        napi_throw_type_error(env, nullptr, "Wrong arguments. Expected number for seed");
-        return nullptr;
-    }
-
-    int seed;
-    status = napi_get_value_int32(env, args[0], &seed);
-    assert(status == napi_ok);
-
-    std::cout << "Seed generator with seed: " << seed << std::endl;
-    addon_data->generator->seed(seed);
+  if (argc == 0) {
+    std::cout << "Seed generator with random_device" << std::endl;
+    auto seed = std::random_device{}();
+    rSeed->m_generator->seed(seed);
+    RandSeed::GlobalBuffer::SetSeed(seed);
   } 
   else {
-    std::cout << "Seed generator with random_device" << std::endl;
-    addon_data->generator->seed(std::random_device{}());
+    std::cout << "Seed generator with seed " << std::endl;
+    NapiArgInt64 arg0;
+    GetArgs(env, info, arg0);
+    int64_t seed = arg0.GetVal();
+    rSeed->m_generator->seed(seed);
+    RandSeed::GlobalBuffer::SetSeed(seed);
+    std::cout << "Seed: " << seed << std::endl;
   }
 
   return nullptr;
 }
 
-/// Return next random number from generator between min/max
-/// Expect 2 args: int32_t min, int32_t max
-static napi_value GenerateRandom(napi_env env, napi_callback_info info) {
-  AddonData* addon_data = GetAddonData(env, info);
+napi_value RandSeed::Generate(napi_env env, napi_callback_info info) {
+    RandSeed* rSeed = GetSelf<RandSeed>(env, info);
 
-  // Get min/max
-  size_t argc = 2;
-  napi_value args[2];
-  napi_status status = napi_get_cb_info(env, info, &argc, args, nullptr, nullptr);
-  assert(status == napi_ok);
+    NapiArgInt64 arg0, arg1;
+    GetArgs(env, info, arg0, arg1);
+    int64_t min = arg0.GetVal();
+    int64_t max = arg1.GetVal();
 
-  if (argc < 2) {
-    napi_throw_type_error(env, nullptr, "Wrong number of arguments");
-    return nullptr;
-  }
+    if (max < min) {
+      // TODO: Replace all errors with this call
+        napi_throw_type_error(env, nullptr, "Max < Min. Min value must be less than Max");
+        return nullptr;
+    }
+    
+    std::uniform_int_distribution<int64_t> distribution(min, max);
 
-  napi_valuetype valuetype0;
-  status = napi_typeof(env, args[0], &valuetype0);
-  assert(status == napi_ok);
+    napi_value result;
+    CheckStatus(napi_create_int64(env, distribution(*rSeed->m_generator), &result), 
+      env, "Failed to create int64");
 
-  napi_valuetype valuetype1;
-  status = napi_typeof(env, args[1], &valuetype1);
-  assert(status == napi_ok);
-
-  if (valuetype0 != napi_number || valuetype1 != napi_number) {
-    napi_throw_type_error(env, nullptr, "Wrong arguments");
-    return nullptr;
-  }
-
-  int32_t min;
-  status = napi_get_value_int32(env, args[0], &min);
-  assert(status == napi_ok);
-
-  int32_t max;
-  status = napi_get_value_int32(env, args[1], &max);
-  assert(status == napi_ok);
-
-  if (max < min) {
-    napi_throw_type_error(env, nullptr, "Max < Min. Min value must be less than Max");
-    return nullptr;
-  }
-
-  // Generate random number
-  std::uniform_int_distribution<int> distribution(min, max);
-
-  napi_value result;
-  assert(napi_create_int32(env,
-                           distribution(*(addon_data->generator)),
-                           &result) == napi_ok);
-
-  // Return the JavaScript integer back to JavaScript.
-  return result;
+    return result;
 }
 
-/// Generate a sequence of random numbers using rand().
-/// Expects 3 arguments
-///  > int32 min
-///  > int32 max
-///  > uint32 size
-/// Returns javascript ArrayBuffer of Uint8_t. To get int32 values, convert to DataView.
-static napi_value GenerateRandomSequence(napi_env env, napi_callback_info info) {
-  AddonData* addon_data = GetAddonData(env, info);
+// TODO: Change to async function so that push can be called after return
+napi_value RandSeed::GenerateSequenceStream(napi_env env, napi_callback_info info) {
+    RandSeed* rSeed = GetSelf<RandSeed>(env, info);
 
-  // Get min/max/size
-  size_t argc = 3;
-  napi_value args[3];
-  napi_status status = napi_get_cb_info(env, info, &argc, args, nullptr, nullptr);
-  assert(status == napi_ok);
+    NapiArgInt64 arg0, arg1;
+    NapiArgUint32 arg2;
+    GetArgs(env, info, arg0, arg1, arg2);
 
-  if (argc < 3) {
-    napi_throw_type_error(env, nullptr, "Wrong number of arguments");
-    return nullptr;
-  }
+    int64_t min = arg0.GetVal();
+    int64_t max = arg1.GetVal();
+    uint32_t count = arg2.GetVal();
 
-  napi_valuetype valuetype0;
-  status = napi_typeof(env, args[0], &valuetype0);
-  assert(status == napi_ok);
+    // get thread-safe seed off global
+    int64_t seed = RandSeed::GlobalBuffer::Next();
 
-  napi_valuetype valuetype1;
-  status = napi_typeof(env, args[1], &valuetype1);
-  assert(status == napi_ok);
-
-  napi_valuetype valuetype2;
-  status = napi_typeof(env, args[1], &valuetype2);
-  assert(status == napi_ok);
-
-  if (valuetype0 != napi_number || valuetype1 != napi_number || valuetype2 != napi_number) {
-    napi_throw_type_error(env, nullptr, "Wrong arguments");
-    return nullptr;
-  }
-
-  int32_t min;
-  status = napi_get_value_int32(env, args[0], &min);
-  assert(status == napi_ok);
-
-  int32_t max;
-  status = napi_get_value_int32(env, args[1], &max);
-  assert(status == napi_ok);
-
-  uint32_t size;
-  status = napi_get_value_uint32(env, args[1], &size);
-  assert(status == napi_ok);
-
-  if (max < min) {
-    napi_throw_type_error(env, nullptr, "Max < Min. Min value must be less than Max");
-    return nullptr;
-  }
-
-  // Create new arraybuffer uint8_t[]
-  const uint32_t buffsize = size*4;
-  std::cout << "Buffer size: " << buffsize << std::endl;
-
-  uint8_t* buf = nullptr;
-  napi_value result;
-  assert(napi_create_arraybuffer(env,
-                           buffsize,
-                           (void**)&buf,
-                           &result) == napi_ok);
-
-  std::uniform_int_distribution<int> distribution(min, max);
-
-  for (uint32_t i = 0; i < size; i++) {
-    const auto nextRand = distribution(*(addon_data->generator));
-    buf[i*4] = nextRand;
-    buf[(i*4) + 1] = nextRand >> 8;
-    buf[(i*4) + 2] = nextRand >> 16;
-    buf[(i*4) + 3] = nextRand >> 24;
-  }
-  
-  // Return the JavaScript array buffer
-  return result;
+    // Return new instance of RandSeedStream
+    return RandSeedStream::NewInstance(env, rSeed->m_readableCtor, seed, min, max, count);
 }
 
-NAPI_MODULE_INIT(/*env, exports*/) {
-  // Create a new instance of the per-instance-data that will be associated with
-  // the instance of the addon being initialized here and that will be destroyed
-  // along with the instance of the addon.
-  AddonData* addon_data = CreateAddonData(env, exports);
-
-  napi_property_descriptor bindings[] = {
-    { "seed", 0, SetSeed, 0, 0, 0, napi_default, addon_data },
-    { "generate", 0, GenerateRandom, 0, 0, 0, napi_default, addon_data },
-    { "sequence", 0, GenerateRandomSequence, 0, 0, 0, napi_default, addon_data }
-  };
-
-  // Expose the two bindings declared above to JavaScript.
-  assert(napi_define_properties(env,
-                                exports,
-                                sizeof(bindings) / sizeof(bindings[0]),
-                                bindings) == napi_ok);
-
-  // Return the `exports` object provided. It now has 3 new properties, which
-  // are the functions we wish to expose to JavaScript.
-  return exports;
+/* Register this as an ES Module */
+napi_value Init(napi_env env, napi_value exports) {
+  // TODO: Pass exports?
+  return RandSeed::Init(env, exports);
 }
+
+NAPI_MODULE(NODE_GYP_MODULE_NAME, Init)
