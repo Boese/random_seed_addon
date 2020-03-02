@@ -48,13 +48,13 @@ let w = new Writable({
 let randSeedAddon = new RandSeed();
 randSeedAddon.SetSeed(2);
 console.log(randSeedAddon.Generate(0,10));
-randSeedAddon.GenerateSequenceStream(0, 10, 10).pipe(w, {end: false});
-randSeedAddon.GenerateSequenceStream(0, 10, 10).pipe(w, {end: false});
-randSeedAddon.GenerateSequenceStream(0, 10, 10).pipe(w, {end: false});
-randSeedAddon.GenerateSequenceStream(0, 10, 10).pipe(w, {end: false});
-randSeedAddon.GenerateSequenceStream(0, 10, 10).pipe(w, {end: false});
+randSeedAddon.GenerateSequenceStream(0, 10, 10).pipe(w, {end: true});
+// randSeedAddon.GenerateSequenceStream(0, 10, 10).pipe(w, {end: false});
+// randSeedAddon.GenerateSequenceStream(0, 10, 10).pipe(w, {end: false});
+// randSeedAddon.GenerateSequenceStream(0, 10, 10).pipe(w, {end: false});
+// randSeedAddon.GenerateSequenceStream(0, 10, 10).pipe(w, {end: false});
 
 console.log('start interval')
 setInterval(() => {
     console.log('hello from JS')
-}, 500)
+}, 10)

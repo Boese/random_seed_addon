@@ -11,18 +11,19 @@
 using namespace rand_addon;
 using namespace napi_extensions;
 
-struct AsyncGenerateData {
-    napi_async_work work;
-    napi_threadsafe_function tsfn;
-    napi_ref readable_ref;
-};
+void RandSeedStream::ThreadSafeFunctionFinalized(napi_env env, void* finalize_data, void* finalize_hint)
+{
+    std::cout << "ThreadSafeFunctionFinalized" << std::endl;
+}
 
-static void CallJs(napi_env env, napi_value js_cb, void* context, void* data) {
+void RandSeedStream::ExecuteThreadSafeFunction(napi_env env, napi_value js_cb, void* context, void* data)
+{
+    std::cout << "ExecuteThreadSafeFunction" << std::endl;
     (void)context; // not used
-    AsyncGenerateData* addon_data = (AsyncGenerateData*)data;
+    ThreadSafeFunctionData* tsfn_data = (ThreadSafeFunctionData*)data;
 
     napi_value readable_instance;
-    napi_status status = napi_get_reference_value(env, addon_data->readable_ref, &readable_instance);
+    napi_status status = napi_get_reference_value(env, tsfn_data->readable_ref, &readable_instance);
     assert(status == napi_ok);
 
     // Create new arraybuffer uint32_t[]
@@ -45,78 +46,71 @@ static void CallJs(napi_env env, napi_value js_cb, void* context, void* data) {
 
     status = napi_call_function(env, readable_instance, js_cb, 1, &res2, nullptr);
     assert(status == napi_ok);
+
+    if (tsfn_data->final) {
+        std::cout << "tsfn final" << std::endl;
+        napi_value null_value;
+        status = napi_get_null(env, &null_value);
+        assert(status == napi_ok);
+
+        status = napi_call_function(env, readable_instance, js_cb, 1, &null_value, nullptr);
+        assert(status == napi_ok);
+
+        napi_reference_unref(env, tsfn_data->readable_ref, nullptr);
+        tsfn_data->readable_ref = nullptr;
+
+        // Final call
+        assert(napi_release_threadsafe_function(tsfn_data->tsfn,
+                                          napi_tsfn_abort) == napi_ok);
+        tsfn_data->tsfn = nullptr;
+    }
+
+    delete tsfn_data;
+    tsfn_data=nullptr;
 }
 
-// TODO: Move these to another cc file. 
-// Need to use async_thread_safe_function from execute.
-// Code is currently running synchronously in the complete callback
-// Move complete Func implementation to a new function thats invoked here from a tsfn
-// index.ts test proves this
 // NOTE: CANNOT EXECUTE JS IN THIS BLOCK! HAS TO BE DONE FROM TSFN!
-void executeFunct(napi_env env, void* data) {
-  AsyncGenerateData* addon_data = (AsyncGenerateData*)data;
+void RandSeedStream::ExecuteAsyncFunction(napi_env env, void* data)
+{
+    std::cout << "ExecuteAsyncFunction" << std::endl;
+    AsyncFunctionData* async_data = (AsyncFunctionData*)data;
+  
+  assert(napi_acquire_threadsafe_function(async_data->tsfn) == napi_ok);
 
-  // We bracket the use of the thread-safe function by this thread by a call to
-  // napi_acquire_threadsafe_function() here, and by a call to
-  // napi_release_threadsafe_function() immediately prior to thread exit.
-  assert(napi_acquire_threadsafe_function(addon_data->tsfn) == napi_ok);
-
-  for (int i = 0; i < 10; i++) {
-    // Initiate the call into JavaScript. The call into JavaScript will not
-    // have happened when this function returns, but it will be queued.
-    assert(napi_call_threadsafe_function(addon_data->tsfn,
-                                          addon_data,
+  // TODO: Use actual args/generator for creating random numbers
+  for (int i = 0; i < 100; i++) {
+      ThreadSafeFunctionData* data = new ThreadSafeFunctionData();
+      data->readable_ref = async_data->readable_ref;
+      data->tsfn = async_data->tsfn;
+      if (i == 99) {
+          data->final = true;
+      }
+    assert(napi_call_threadsafe_function(async_data->tsfn,
+                                          (void*)data,
                                           napi_tsfn_blocking) == napi_ok);
-    std::this_thread::sleep_for (std::chrono::milliseconds(10));
   }
   
 
-  // Indicate that this thread will make no further use of the thread-safe function.
-  assert(napi_release_threadsafe_function(addon_data->tsfn,
+  std::cout << "release tsfn" << std::endl;
+  assert(napi_release_threadsafe_function(async_data->tsfn,
                                           napi_tsfn_release) == napi_ok);
 }
 
-void completeFunc(napi_env env, napi_status status, void* data) {
-    AsyncGenerateData* addon_data = (AsyncGenerateData*)data;
-
-    napi_value readable_instance;
-    status = napi_get_reference_value(env, addon_data->readable_ref, &readable_instance);
-    assert(status == napi_ok);
-
-    napi_value push_func;
-    status = napi_get_named_property(env, readable_instance, "push", &push_func);
-    assert(status == napi_ok);
-
-    // NOTE: MUST CALL NULL WHEN FINISHED OR ERROR WILL OCCUR
-    napi_value null_value;
-    status = napi_get_null(env, &null_value);
-    assert(status == napi_ok);
-    status = napi_call_function(env, readable_instance, push_func, 1, &null_value, nullptr);
-    assert(status == napi_ok);
-    
-    uint32_t ref_count;
-    status = napi_reference_unref(env, addon_data->readable_ref, &ref_count);
-    assert(status == napi_ok);
-    assert(ref_count == 0);
-
-    // Clean up the thread-safe function and the work item associated with this
-    // run.
-    assert(napi_release_threadsafe_function(addon_data->tsfn,
-                                            napi_tsfn_release) == napi_ok);
-    assert(napi_delete_async_work(env, addon_data->work) == napi_ok);
-
-    // Set values to NULL so JavaScript can order a new run of the thread.
-    addon_data->work = NULL;
-    addon_data->tsfn = NULL;
-    addon_data->readable_ref = NULL;
-    delete data;
-    data = nullptr;
-}
-
-static napi_value _read(napi_env env, napi_callback_info info)
+void RandSeedStream::CompleteAsyncFunction(napi_env env, napi_status status, void* data)
 {
-  return nullptr;
+    AsyncFunctionData* async_data = (AsyncFunctionData*)data;
+    std::cout << "CompleteAsyncFunction" << std::endl;
+
+    napi_delete_async_work(env, async_data->work);
+    async_data->work = nullptr;
+
+    napi_reference_unref(env, async_data->readable_ref, nullptr);
+    async_data->readable_ref = nullptr;
+
+    delete async_data;
+    async_data=nullptr;
 }
+
 
 napi_value RandSeedStream::NewInstance(napi_env env, napi_ref readableCtorRef, int64_t seed, int64_t min, int64_t max, uint32_t count) {
 
@@ -140,7 +134,13 @@ napi_value RandSeedStream::NewInstance(napi_env env, napi_ref readableCtorRef, i
     status = napi_set_named_property(env, readable_instance, "_read", _readFn);
     assert(status == napi_ok);
 
-    AsyncGenerateData* addon_data = new AsyncGenerateData();
+    std::unique_ptr<std::mt19937> generator = std::make_unique<std::mt19937>(std::random_device{}());
+    generator->seed(seed);
+    AsyncFunctionData* async_data = new AsyncFunctionData();
+    async_data->count = count;
+    async_data->min = min;
+    async_data->max = max;
+    async_data->generator = std::move(generator);
 
     napi_value async_name;
     status = napi_create_string_utf8(env, "generate_async", NAPI_AUTO_LENGTH, &async_name);
@@ -150,7 +150,7 @@ napi_value RandSeedStream::NewInstance(napi_env env, napi_ref readableCtorRef, i
     status = napi_create_string_utf8(env, "generate_tsfn", NAPI_AUTO_LENGTH, &tsfn_name);
     assert(status == napi_ok);
 
-    status = napi_create_reference(env, readable_instance, 1, &addon_data->readable_ref);
+    status = napi_create_reference(env, readable_instance, 1, &async_data->readable_ref);
     assert(status == napi_ok);
     
     napi_value push_func;
@@ -159,15 +159,15 @@ napi_value RandSeedStream::NewInstance(napi_env env, napi_ref readableCtorRef, i
 
     // TODO: Put CallJS, executeFunc, completeFunc in RandSeedStream class
     // Create thread safe function
-    status = napi_create_threadsafe_function(env, push_func, nullptr, tsfn_name, 0, 1, nullptr, nullptr, nullptr, CallJs, &(addon_data->tsfn));
+    status = napi_create_threadsafe_function(env, push_func, nullptr, tsfn_name, 0, 1, nullptr, ThreadSafeFunctionFinalized, nullptr, ExecuteThreadSafeFunction, &(async_data->tsfn));
     assert(status == napi_ok);
 
     // Create async function
-    status = napi_create_async_work(env, nullptr, async_name, &executeFunct, &completeFunc, addon_data, &(addon_data->work));
+    status = napi_create_async_work(env, nullptr, async_name, ExecuteAsyncFunction, CompleteAsyncFunction, async_data, &(async_data->work));
     assert(status == napi_ok);
 
     // Queue async function
-    status = napi_queue_async_work(env, addon_data->work);
+    status = napi_queue_async_work(env, async_data->work);
     assert(status == napi_ok);
 
     return readable_instance;
