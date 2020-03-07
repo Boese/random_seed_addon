@@ -93,5 +93,44 @@ describe('Random Seed', () => {
         let b: Number[] = await new Promise(resolve => w.on('finish', () => resolve(w.GetNumbers())));
         chai.expect(a).eql(b);
     })
+
+    it('3 generate streams of size 1000, same seed, triggered in parallel, should be equal', async () => {
+
+        const RangeToTest = 1000;
+
+        let w1 = new TestWriteableStream({});
+        let w2 = new TestWriteableStream({});
+        let w3 = new TestWriteableStream({});
+
+        let r1 = new RandSeed();
+        let r2 = new RandSeed();
+        let r3 = new RandSeed();
+
+        r1.SetSeed(TEST_SEED);
+        r2.SetSeed(TEST_SEED);
+        r3.SetSeed(TEST_SEED);
+
+        let promiseWrapper = (r: any, w: TestWriteableStream) => {
+            return new Promise<Number[]>(resolve => {
+                r.GenerateSequenceStream(TEST_MIN, TEST_MAX, RangeToTest).pipe(w);
+                w.on('finish', () => resolve(w.GetNumbers()));
+            })
+        }
+
+        let p1 = promiseWrapper(r1, w1);
+        let p2 = promiseWrapper(r2, w2);
+        let p3 = promiseWrapper(r3, w3);
+
+        let results: Number[][] = await Promise.all([p1, p2, p3]);
+        chai.expect(results[0]).eql(results[1]).eql(results[2]);
+    })
+
+    // TODO: Add tests for these cases
+    // 1. Call GenerateSequenceStream multiple times off same instance, reset seed, run again, compare results, expect equal
+    // 2. Same as 1, but run them in parallel (in hopes they will run/finish at different times)
+    // 3. Test Max/Min
+    
+    // TODO: Add these tests in future when implemented (TDD style)
+    // 1. Test everything here, but with different types, BigInt64, Int64 (MAX_JS_NUMBER), uint32/int32, uint16/int16, uint8/int8, double
     
 })

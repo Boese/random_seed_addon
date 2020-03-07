@@ -18,16 +18,18 @@ Should be able to create any random number or sequence of type compatible with J
 <h3>Proposed API</h3>
 
 ```c++
-class RandSeed (implement Writeable stream) {
+class RandSeed (implement NodeJS.Writeable stream) {
     public:
+        /*Currently implemented*/
+
         RandSeed();
-        void SetSeet(int32_t num) // set seed;
+        void SetSeed(int64_t num) // set seed;
 
-        template<typename T>
-        int32_t Generate(min, max) // send a random number immediately
+        int64_t Generate(int64_t min, int64_t max) // send a random number immediately
 
-        template<typename T>
-        void GenerateSequenceAsync(min, max, size) // sends random numbers to the underlying stream buffer
+        void GenerateSequenceStream(int64_t min, int64_t max, uint64_t size) // sends random numbers to the underlying stream buffer
+
+        /* Future will support all types. Will be additional enum param to Generate, GenerateSequenceStream */
 };
 ```
 
