@@ -4,12 +4,18 @@
 #include <assert.h>
 #include <random>
 #include <iostream>
+#include <algorithm>
 #include <string>
 #include <thread>
 #include <chrono>
 
 using namespace rand_addon;
 using namespace napi_extensions;
+
+/// \brief 16kb is max buffer size for Node JS Readable stream. 16kb -> 2000 bytes to represent int64_t
+static const uint32_t MAX_BUFFER_SIZE = 2000;
+static const int64_t JAVASCRIPT_MAX_SAFE_NUMBER = 0x1FFFFFFFFFFFFF; //(2^53 - 1)
+static const int64_t JAVASCRIPT_MIN_SAFE_NUMBER = -(JAVASCRIPT_MAX_SAFE_NUMBER);
 
 void RandSeedStream::ThreadSafeFunctionFinalized(napi_env env, void* finalize_data, void* finalize_hint)
 {
@@ -26,22 +32,23 @@ void RandSeedStream::ExecuteThreadSafeFunction(napi_env env, napi_value js_cb, v
     napi_status status = napi_get_reference_value(env, tsfn_data->readable_ref, &readable_instance);
     assert(status == napi_ok);
 
-    // Create new arraybuffer uint32_t[]
-    const uint32_t uint32_buff_size = 4000;
-    const uint32_t uint8_buff_size = uint32_buff_size*4; // (for uint32_t random numbers)
-
-    uint32_t* buff = nullptr;
+    // Create new arraybuffer int64_t
+    const size_t buff_size_in_bytes = tsfn_data->buffer->size()*8; // (for int64_t random numbers)
+    int64_t* buff = nullptr;
 
     napi_value res;
-    status = napi_create_arraybuffer(env, uint8_buff_size, (void**)&buff, &res);
+    status = napi_create_arraybuffer(env, buff_size_in_bytes, (void**)&buff, &res);
     assert(status == napi_ok);
 
-    for (uint32_t i = 0; i < uint32_buff_size; i++) {
-        buff[i] = i;
+    for (size_t i = 0; i < tsfn_data->buffer->size(); i++) {
+        buff[i] = tsfn_data->buffer->at(i);
     }
 
+    // TODO: Can this work?
+    //status = napi_create_buffer_copy(env, int8_buff_size, (void*)(tsfn_data->buffer), 
+
     napi_value res2;
-    status = napi_create_typedarray(env, napi_typedarray_type::napi_uint8_array, uint8_buff_size, res, 0, &res2);
+    status = napi_create_typedarray(env, napi_typedarray_type::napi_uint8_array, buff_size_in_bytes, res, 0, &res2);
     assert(status == napi_ok);
 
     status = napi_call_function(env, readable_instance, js_cb, 1, &res2, nullptr);
@@ -58,6 +65,7 @@ void RandSeedStream::ExecuteThreadSafeFunction(napi_env env, napi_value js_cb, v
 
         napi_reference_unref(env, tsfn_data->readable_ref, nullptr);
         tsfn_data->readable_ref = nullptr;
+        tsfn_data->buffer.reset(nullptr);
 
         // Final call
         assert(napi_release_threadsafe_function(tsfn_data->tsfn,
@@ -74,23 +82,35 @@ void RandSeedStream::ExecuteAsyncFunction(napi_env env, void* data)
 {
     std::cout << "ExecuteAsyncFunction" << std::endl;
     AsyncFunctionData* async_data = (AsyncFunctionData*)data;
+
+    std::mt19937& generator = *async_data->generator;
+    std::uniform_int_distribution<int64_t>& distribution = *async_data->distribution;
   
   assert(napi_acquire_threadsafe_function(async_data->tsfn) == napi_ok);
 
-  // TODO: Use actual args/generator for creating random numbers
-  for (int i = 0; i < 100; i++) {
-      ThreadSafeFunctionData* data = new ThreadSafeFunctionData();
-      data->readable_ref = async_data->readable_ref;
-      data->tsfn = async_data->tsfn;
-      if (i == 99) {
-          data->final = true;
-      }
-    assert(napi_call_threadsafe_function(async_data->tsfn,
-                                          (void*)data,
-                                          napi_tsfn_blocking) == napi_ok);
-  }
-  
+  uint32_t remaining = async_data->count;
+  do {
+    uint32_t count = std::min(remaining, MAX_BUFFER_SIZE);
+    remaining -= count;
 
+    if (count > 0) {
+
+        ThreadSafeFunctionData* tsfn_data = new ThreadSafeFunctionData();
+        tsfn_data->readable_ref = async_data->readable_ref;
+        tsfn_data->tsfn = async_data->tsfn;
+        tsfn_data->final = remaining < 1;
+        tsfn_data->buffer = std::unique_ptr<std::vector<int64_t>>(new std::vector<int64_t>(count));
+
+        auto next = [&distribution, &generator] () { return distribution(generator); };
+        std::generate(tsfn_data->buffer->begin(), tsfn_data->buffer->end(), next);
+
+        assert(napi_call_threadsafe_function(async_data->tsfn,
+                                          (void*)tsfn_data,
+                                          napi_tsfn_blocking) == napi_ok);
+    }
+    
+  } while(remaining > 0);
+  
   std::cout << "release tsfn" << std::endl;
   assert(napi_release_threadsafe_function(async_data->tsfn,
                                           napi_tsfn_release) == napi_ok);
@@ -141,6 +161,9 @@ napi_value RandSeedStream::NewInstance(napi_env env, napi_ref readableCtorRef, i
     async_data->min = min;
     async_data->max = max;
     async_data->generator = std::move(generator);
+    async_data->distribution = std::make_unique<std::uniform_int_distribution<int64_t>>(
+        std::max(min, JAVASCRIPT_MIN_SAFE_NUMBER), 
+        std::min(max, JAVASCRIPT_MAX_SAFE_NUMBER));
 
     napi_value async_name;
     status = napi_create_string_utf8(env, "generate_async", NAPI_AUTO_LENGTH, &async_name);

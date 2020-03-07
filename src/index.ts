@@ -4,12 +4,18 @@ import { Writable, Readable } from 'stream'
 RandSeed.SetReadable(Readable) // required
 
 let i = 0;
+let randNumers = [];
 let w = new Writable({
     write: (chunk: any, encoding: any, callback: any) => {
         let d = new DataView(chunk.buffer)
-        let n = d.getInt32(15996, true)
-        console.log(i++, n);
         callback();
+        
+        for (let i = 0; i < d.byteLength; i+=8) {
+            let h = d.getInt32(i, true);
+            let l = d.getInt32(i+4, true);
+            randNumers.push(h+l);
+        }
+        
     }
 });
 
@@ -48,13 +54,13 @@ let w = new Writable({
 let randSeedAddon = new RandSeed();
 randSeedAddon.SetSeed(2);
 console.log(randSeedAddon.Generate(0,10));
-randSeedAddon.GenerateSequenceStream(0, 10, 10).pipe(w, {end: true});
-// randSeedAddon.GenerateSequenceStream(0, 10, 10).pipe(w, {end: false});
-// randSeedAddon.GenerateSequenceStream(0, 10, 10).pipe(w, {end: false});
-// randSeedAddon.GenerateSequenceStream(0, 10, 10).pipe(w, {end: false});
-// randSeedAddon.GenerateSequenceStream(0, 10, 10).pipe(w, {end: false});
+randSeedAddon.GenerateSequenceStream(-10, 10, 1000).pipe(w, {end: false});
+randSeedAddon.GenerateSequenceStream(-10, 10, 1000).pipe(w, {end: false});
+randSeedAddon.GenerateSequenceStream(-10, 10, 1000).pipe(w, {end: false});
+randSeedAddon.GenerateSequenceStream(-10, 10, 1000).pipe(w, {end: false});
+randSeedAddon.GenerateSequenceStream(-10, 10, 1000).pipe(w, {end: false});
 
 console.log('start interval')
 setInterval(() => {
-    console.log('hello from JS')
+    console.log('hello from JS', randNumers.length);
 }, 10)

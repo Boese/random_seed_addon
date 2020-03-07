@@ -18,6 +18,9 @@ private:
         // rng instance
         std::unique_ptr<std::mt19937> generator{nullptr};
 
+        // distribution instance
+        std::unique_ptr<std::uniform_int_distribution<int64_t>> distribution{nullptr};
+
         // min random number
         int64_t min{0};
 
@@ -37,7 +40,7 @@ private:
         bool final{false};
 
         // numbers to write to buffer
-        uint32_t* buffer{nullptr};
+        std::unique_ptr<std::vector<int64_t>> buffer{nullptr};
 
         // threadsafe function instance
         napi_threadsafe_function tsfn{nullptr};
@@ -45,6 +48,9 @@ private:
         // reference to node js Readable
         napi_ref readable_ref{nullptr};
     };
+
+    // standard uniform int distribution
+    
 
     static void ExecuteThreadSafeFunction(napi_env env, napi_value js_cb, void* context, void* data);
     static void ThreadSafeFunctionFinalized(napi_env env, void* finalize_data, void* finalize_hint);
