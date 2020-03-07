@@ -110,16 +110,18 @@ napi_value RandSeed::SetSeed(napi_env env, napi_callback_info info) {
   if (argc == 0) {
     std::cout << "Seed generator with random_device" << std::endl;
     auto seed = std::random_device{}();
-    rSeed->m_generator->seed(seed);
+    
     RandSeed::GlobalBuffer::SetSeed(seed);
+    rSeed->m_generator->seed(RandSeed::GlobalBuffer::Next());
   } 
   else {
     std::cout << "Seed generator with seed " << std::endl;
     NapiArgInt64 arg0;
     GetArgs(env, info, arg0);
     int64_t seed = arg0.GetVal();
-    rSeed->m_generator->seed(seed);
+    
     RandSeed::GlobalBuffer::SetSeed(seed);
+    rSeed->m_generator->seed(RandSeed::GlobalBuffer::Next());
     std::cout << "Seed: " << seed << std::endl;
   }
 

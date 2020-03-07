@@ -47,6 +47,7 @@ void RandSeedStream::ExecuteThreadSafeFunction(napi_env env, napi_value js_cb, v
     // TODO: Can this work?
     //status = napi_create_buffer_copy(env, int8_buff_size, (void*)(tsfn_data->buffer), 
 
+    // TODO: This will not work. Readable.push expects Buffer | Uint8Array | string. Might need to create a buffer instead or only support unsigned
     napi_value res2;
     status = napi_create_typedarray(env, napi_typedarray_type::napi_uint8_array, buff_size_in_bytes, res, 0, &res2);
     assert(status == napi_ok);
