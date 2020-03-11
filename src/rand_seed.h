@@ -4,6 +4,7 @@
 #include <random>
 #include <queue>
 #include <memory>
+#include <iostream>
 
 namespace rand_addon {
 
@@ -55,61 +56,48 @@ private:
     napi_ref m_wrapper;
     // the RNG
     std::unique_ptr<std::mt19937> m_generator;
+    // signal seed reset
+    bool m_seedReset{false};
 
+    // TODO: Move this to a new file!!
     /// \brief Singleton queue of int64_t of random numbers for async sequence calls
     class GlobalBuffer {
-        static const uint64_t BufferMax{1000};
+        const uint64_t BufferMax{1000};
+        std::queue<int64_t> m_buffer;
+        std::mt19937 m_generator;
+        const std::uniform_int_distribution<int64_t> m_distribution;
 
-        static std::queue<int64_t>& GetBuffer()
-        {
-            static std::queue<int64_t> globalBuffer{};
-            return globalBuffer;
-        }
-
-        static std::mt19937& GetGenerator()
-        {
-            static std::mt19937 generator{std::random_device{}()};
-            return generator;
-        }
-
-        static std::uniform_int_distribution<int64_t>& GetDistribution()
-        {
-            static std::uniform_int_distribution<int64_t> distribution(
-                std::numeric_limits<int64_t>::min(), std::numeric_limits<int64_t>::max());
-            return distribution;
-        }
-
-        static void FillBuffer()
+        void FillBuffer()
         {
             // Clear buffer
-            static std::queue<int64_t> empty{};
-            auto& buffer = GetBuffer();
-            buffer.swap(empty);
-
-            auto& distribution = GetDistribution();
-            auto& generator = GetGenerator();
+            m_buffer.swap(std::queue<int64_t>{});
 
             // Fill Buffer
             for (size_t i = 0; i < BufferMax; i++) {
-                buffer.push(distribution(generator));
+                auto num = m_distribution(m_generator);
+                m_buffer.push(num);
             }
         }
 
     public:
-        static void SetSeed(int64_t seed) {
-            auto& buffer = GetBuffer();
-            GetGenerator().seed(seed);
+        GlobalBuffer() : m_buffer(), m_generator(std::random_device{}()), 
+            m_distribution(std::numeric_limits<int64_t>::min(), std::numeric_limits<int64_t>::max()) {}
+
+        void SetSeed(int64_t seed) {
+            m_generator.seed(seed);
             FillBuffer();
         }
 
-        static int64_t Next() {
-            auto& buffer = GetBuffer();
-            if (buffer.empty()) {
+        int64_t Next() {
+            if (m_buffer.empty()) {
                 FillBuffer();
             }
-            return buffer.front();
+            auto next = m_buffer.front();
+            m_buffer.pop();
+            return next;
         }
     };
+    std::unique_ptr<GlobalBuffer> m_GlobalBuffer;
 
 public:
     /// \brief Module init function

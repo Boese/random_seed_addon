@@ -32,21 +32,12 @@ class TestWriteableStream extends Writable {
         }
     }
     GetNumbers = () => this.randNumbers;
+    ClearNumbers = () : void => { this.randNumbers = []; } 
 }
 
 describe('Random Seed', () => {
 
-    let rand_seed: any;
-    it('check', () => {
-        rand_seed = new RandSeed();
-        chai.expect(10).to.eq(10);
-    })
-
-    beforeEach(() => {
-        rand_seed = new RandSeed();
-        rand_seed.SetSeed(TEST_SEED);
-    })
-    it('Check multiple instances', () => {
+    it('Check multiple instances with same seed', () => {
         let a = new RandSeed();
         let b = new RandSeed();
         a.SetSeed(11);
@@ -55,46 +46,52 @@ describe('Random Seed', () => {
         let b_rand = b.Generate(TEST_MIN, TEST_MAX);
         chai.expect(a_rand).to.be.equal(b_rand);
     })
-    it('Check resetting seed ', () => {
+    it('Check resetting seed on same instance', () => {
         // Call rand() twice
-        let seed1 = rand_seed.Generate(TEST_MIN, TEST_MAX);
-        let seed2 = rand_seed.Generate(TEST_MIN, TEST_MAX);
+        let a = new RandSeed();
+        a.SetSeed(TEST_SEED);
+
+        let num1 = a.Generate(TEST_MIN, TEST_MAX);
+        let num2 = a.Generate(TEST_MIN, TEST_MAX);
 
         // Reset seed
-        rand_seed.SetSeed(TEST_SEED);
+        a.SetSeed(TEST_SEED);
 
         // Call rand() twice again
-        let seed3 = rand_seed.Generate(TEST_MIN, TEST_MAX);
-        let seed4 = rand_seed.Generate(TEST_MIN, TEST_MAX);
+        let num3 = a.Generate(TEST_MIN, TEST_MAX);
+        let num4 = a.Generate(TEST_MIN, TEST_MAX);
 
         // Should equal
-        chai.expect(seed1).to.equal(seed3);
-        chai.expect(seed2).to.equal(seed4);
+        chai.expect(num1).to.equal(num3);
+        chai.expect(num2).to.equal(num4);
     })
 
-    it('should return correct sequence for 100 elements', async () => {
+    it('Check Generate 100x should match sequence of GenerateSequenceStream', async () => {
 
         const RangeToTest = 100;
+        
+        let a = new RandSeed();
+        a.SetSeed(TEST_SEED);
 
         // Get 3 random numbers
-        let a: Number[] = [];
+        let nums: Number[] = [];
         for (let i = 0; i < RangeToTest; i++) {
-            a.push(rand_seed.Generate(TEST_MIN, TEST_MAX))
+            nums.push(a.Generate(TEST_MIN, TEST_MAX))
         }
 
         // Reset seed seed
-        rand_seed.SetSeed(TEST_SEED);
+        a.SetSeed(TEST_SEED);
 
         // Get 3 random numbers from rand sequence
         let w = new TestWriteableStream({});
-        rand_seed.GenerateSequenceStream(TEST_MIN, TEST_MAX, RangeToTest).pipe(w);
+        a.GenerateSequenceStream(TEST_MIN, TEST_MAX, RangeToTest).pipe(w);
 
         // Check (manual) Generate == GenerateSequenceStream
-        let b: Number[] = await new Promise(resolve => w.on('finish', () => resolve(w.GetNumbers())));
-        chai.expect(a).eql(b);
+        let nums2: Number[] = await new Promise(resolve => w.on('finish', () => resolve(w.GetNumbers())));
+        chai.expect(nums).eql(nums2);
     })
 
-    it('3 generate streams of size 1000, same seed, triggered in parallel, should be equal', async () => {
+    it('Check 3 generate streams of size 1000, same seed, triggered in parallel, should be equal', async () => {
 
         const RangeToTest = 1000;
 
@@ -125,10 +122,46 @@ describe('Random Seed', () => {
         chai.expect(results[0]).eql(results[1]).eql(results[2]);
     })
 
+    it('Check GenerateSequenceStream multiple times off same instance, reset seed, run again, compare results, expect equal', async () => {
+        const RangeToTest = 5;
+
+        let w1 = new TestWriteableStream({});
+        let r1 = new RandSeed();
+
+        r1.SetSeed(TEST_SEED);
+
+        let promiseWrapper = (r: any, w: TestWriteableStream) => {
+            return new Promise<Number[]>(resolve => {
+                let readableStream: Readable = r.GenerateSequenceStream(TEST_MIN, TEST_MAX, RangeToTest);
+                readableStream.pipe(w, {end: false});
+                readableStream.on('end', () => {
+                    let nums = w.GetNumbers();
+                    w.ClearNumbers();
+                    resolve(nums)
+                })
+            })
+        }
+
+        let p1: Number[] = [];
+        p1 = p1.concat(await promiseWrapper(r1, w1));
+        p1 = p1.concat(await promiseWrapper(r1, w1));
+        p1 = p1.concat(await promiseWrapper(r1, w1));
+
+        r1.SetSeed(TEST_SEED)
+
+        let p2: Number[] = [];
+        p2 = p2.concat(await promiseWrapper(r1, w1));
+        p2 = p2.concat(await promiseWrapper(r1, w1));
+        p2 = p2.concat(await promiseWrapper(r1, w1));
+
+        chai.expect(p1).eql(p2);
+    })
+
     // TODO: Add tests for these cases
-    // 1. Call GenerateSequenceStream multiple times off same instance, reset seed, run again, compare results, expect equal
-    // 2. Same as 1, but run them in parallel (in hopes they will run/finish at different times)
-    // 3. Test Max/Min
+    // 1. Same as 1, but run them in parallel (in hopes they will run/finish at different times)
+    // 2. Test Max/Min
+    // 3. Check different random numbers on multiple instances (seed changing)
+    // 4. Check different random numbers when setting seed to different values
     
     // TODO: Add these tests in future when implemented (TDD style)
     // 1. Test everything here, but with different types, BigInt64, Int64 (MAX_JS_NUMBER), uint32/int32, uint16/int16, uint8/int8, double

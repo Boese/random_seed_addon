@@ -26,7 +26,7 @@ napi_value RandSeed::SetReadable(napi_env env, napi_callback_info info)
   return nullptr;
 }
 
-RandSeed::RandSeed() : m_generator(std::make_unique<std::mt19937>(std::random_device{}())) {}
+RandSeed::RandSeed() : m_generator(std::make_unique<std::mt19937>(std::random_device{}())), m_GlobalBuffer(std::make_unique<GlobalBuffer>()) {}
 
 RandSeed::~RandSeed() {
     napi_delete_reference(m_env, m_wrapper);
@@ -106,23 +106,19 @@ napi_value RandSeed::SetSeed(napi_env env, napi_callback_info info) {
   // Get seed if specified. If not use std::random_device()
   size_t argc = 1;
   CheckStatus(napi_get_cb_info(env, info, &argc, nullptr, nullptr, nullptr), env, "SetSeed() get cb info");
+  rSeed->m_seedReset = true;
 
   if (argc == 0) {
     std::cout << "Seed generator with random_device" << std::endl;
-    auto seed = std::random_device{}();
-    
-    RandSeed::GlobalBuffer::SetSeed(seed);
-    rSeed->m_generator->seed(RandSeed::GlobalBuffer::Next());
+    rSeed->m_GlobalBuffer->SetSeed(std::random_device{}());
   } 
   else {
-    std::cout << "Seed generator with seed " << std::endl;
     NapiArgInt64 arg0;
     GetArgs(env, info, arg0);
     int64_t seed = arg0.GetVal();
+    std::cout << "Seed generator with set seed: " << seed << std::endl;
     
-    RandSeed::GlobalBuffer::SetSeed(seed);
-    rSeed->m_generator->seed(RandSeed::GlobalBuffer::Next());
-    std::cout << "Seed: " << seed << std::endl;
+    rSeed->m_GlobalBuffer->GlobalBuffer::SetSeed(seed);
   }
 
   return nullptr;
@@ -130,6 +126,13 @@ napi_value RandSeed::SetSeed(napi_env env, napi_callback_info info) {
 
 napi_value RandSeed::Generate(napi_env env, napi_callback_info info) {
     RandSeed* rSeed = GetSelf<RandSeed>(env, info);
+
+    if (rSeed->m_seedReset) {
+      auto fakeSeed = rSeed->m_GlobalBuffer->Next();
+      std::cout << "Setting fake seed: " << fakeSeed << std::endl;
+      rSeed->m_generator->seed(fakeSeed);
+      rSeed->m_seedReset = false;
+    }
 
     NapiArgInt64 arg0, arg1;
     GetArgs(env, info, arg0, arg1);
@@ -164,7 +167,7 @@ napi_value RandSeed::GenerateSequenceStream(napi_env env, napi_callback_info inf
     uint32_t count = arg2.GetVal();
 
     // get thread-safe seed off global
-    int64_t seed = RandSeed::GlobalBuffer::Next();
+    int64_t seed = rSeed->m_GlobalBuffer->Next();
 
     // Return new instance of RandSeedStream
     return RandSeedStream::NewInstance(env, rSeed->m_readableCtor, seed, min, max, count);

@@ -135,6 +135,8 @@ void RandSeedStream::CompleteAsyncFunction(napi_env env, napi_status status, voi
 
 napi_value RandSeedStream::NewInstance(napi_env env, napi_ref readableCtorRef, int64_t seed, int64_t min, int64_t max, uint32_t count) {
 
+    std::cout << "New Instance: seed: " << seed << std::endl;
+
     // Start async work
     napi_value readableCtor;
     napi_get_reference_value(env, readableCtorRef, &readableCtor);
