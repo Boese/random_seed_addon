@@ -42,7 +42,7 @@ class RandSeed (implement NodeJS.Writeable stream) {
     <li>Add typescript types</li>
     <li>Add Travis CI for tests</li>
     <li>Add Travis CI for builds</li>
-    <li>Add badge for dependencies</li>
+    <li>Add badge for dependencies, coverage, builds</li>
     <li>publish to npm</li>
     <li>[FUTURE] Currently int64 only supported. Add other types: int8, uint8, int16, uint16, int32, uint32, double, big_int64, big_uint64</li>
 </ul>
