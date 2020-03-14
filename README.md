@@ -1,5 +1,5 @@
-https://img.shields.io/david/Boese/node-rand
-[![Dependency Status](https://david-dm.org/dwyl/esta.svg)](https://david-dm.org/Boese/node-rand)
+![David](https://img.shields.io/david/Boese/node-rand)
+![David](https://img.shields.io/david/dev/Boese/node-rand)
 
 <h1>NodeJS native addon wrapper around c++ random library</h1>
 
