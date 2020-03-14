@@ -14,8 +14,6 @@ using namespace napi_extensions;
 
 /// \brief 16kb is max buffer size for Node JS Readable stream. 16kb -> 2000 bytes to represent int64_t
 static const uint32_t MAX_BUFFER_SIZE = 2000;
-static const int64_t JAVASCRIPT_MAX_SAFE_NUMBER = 0x1FFFFFFFFFFFFF; //(2^53 - 1)
-static const int64_t JAVASCRIPT_MIN_SAFE_NUMBER = -(JAVASCRIPT_MAX_SAFE_NUMBER);
 
 void RandSeedStream::ThreadSafeFunctionFinalized(napi_env env, void* finalize_data, void* finalize_hint)
 {
@@ -161,12 +159,11 @@ napi_value RandSeedStream::NewInstance(napi_env env, napi_ref readableCtorRef, i
     generator->seed(seed);
     AsyncFunctionData* async_data = new AsyncFunctionData();
     async_data->count = count;
-    async_data->min = min;
-    async_data->max = max;
+    async_data->min = napi_extensions::LimitNumberBetweenJavascriptMinMax(min);
+    async_data->max = napi_extensions::LimitNumberBetweenJavascriptMinMax(max);
     async_data->generator = std::move(generator);
-    async_data->distribution = std::make_unique<std::uniform_int_distribution<int64_t>>(
-        std::max(min, JAVASCRIPT_MIN_SAFE_NUMBER), 
-        std::min(max, JAVASCRIPT_MAX_SAFE_NUMBER));
+
+    async_data->distribution = std::make_unique<std::uniform_int_distribution<int64_t>>(min, max);
 
     napi_value async_name;
     status = napi_create_string_utf8(env, "generate_async", NAPI_AUTO_LENGTH, &async_name);

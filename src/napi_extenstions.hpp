@@ -185,4 +185,17 @@ static napi_status napi_inherits(napi_env env,           // Node-api env
     return napi_call_function(env, global, set_prototype_of, 2, argv, NULL);
 }
 
+static const int64_t JAVASCRIPT_MAX_SAFE_NUMBER = 0x1FFFFFFFFFFFFF; //(2^53 - 1)
+static const int64_t JAVASCRIPT_MIN_SAFE_NUMBER = -(JAVASCRIPT_MAX_SAFE_NUMBER);
+
+static int64_t LimitNumberBetweenJavascriptMinMax(const int64_t &number) {
+    if (number < JAVASCRIPT_MIN_SAFE_NUMBER) {
+        return JAVASCRIPT_MIN_SAFE_NUMBER;
+    } else if (number > JAVASCRIPT_MAX_SAFE_NUMBER) {
+        return JAVASCRIPT_MAX_SAFE_NUMBER;
+    }
+    return number;
+}
+
+
 } // end napi_extensions namespace

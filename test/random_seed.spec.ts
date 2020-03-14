@@ -157,11 +157,126 @@ describe('Random Seed', () => {
         chai.expect(p1).eql(p2);
     })
 
-    // TODO: Add tests for these cases
-    // 1. Same as 1, but run them in parallel (in hopes they will run/finish at different times)
-    // 2. Test Max/Min
-    // 3. Check different random numbers on multiple instances (seed changing)
-    // 4. Check different random numbers when setting seed to different values
+    it('Check GenerateSequenceStream multiple times off same instance, reset seed, run in parallel, compare results, expect equal', async () => {
+        const RangeToTest = 500;
+        const loops = 10;
+
+        let w1 = new TestWriteableStream({});
+        let r1 = new RandSeed();
+
+        r1.SetSeed(TEST_SEED);
+
+        let promiseWrapper = (r: any, w: TestWriteableStream) => {
+            return new Promise<Number[]>(resolve => {
+                let readableStream: Readable = r.GenerateSequenceStream(TEST_MIN, TEST_MAX, RangeToTest);
+                readableStream.pipe(w, {end: false});
+                readableStream.on('end', () => {
+                    let nums = w.GetNumbers();
+                    w.ClearNumbers();
+                    resolve(nums)
+                })
+            })
+        }
+
+        let p1: Number[] = [];
+        for (let i = 0; i < loops; i++ ) {
+            p1 = p1.concat(await promiseWrapper(r1, w1));
+        }
+
+        r1.SetSeed(TEST_SEED)
+
+        let p2: Number[] = (await Promise.all([...Array(loops)].map(m => promiseWrapper(r1, w1)))).reduce((a,c) => a.concat(c))
+
+        chai.expect(p1).eql(p2);
+    })
+
+    it('Check Number.MIN_SAFE_INTEGER <= number <= Number.MAX_SAFE_INTEGER', async () => {
+        let r1 = new RandSeed();
+
+        // Generate Max
+        let num = r1.Generate(Number.MAX_SAFE_INTEGER + 1, Number.MAX_SAFE_INTEGER + 10);
+        chai.expect(num).lte(Number.MAX_SAFE_INTEGER);
+
+        // Generate Min
+        num = r1.Generate(Number.MIN_SAFE_INTEGER - 1, Number.MIN_SAFE_INTEGER - 10);
+        chai.expect(num).gte(-Number.MAX_SAFE_INTEGER);
+
+        let w1 = new TestWriteableStream({});
+
+        let promiseWrapper = (r: any, w: TestWriteableStream, min: Number, max: Number, count: Number) => {
+            return new Promise<Number[]>(resolve => {
+                let readableStream: Readable = r.GenerateSequenceStream(min, max, count);
+                readableStream.pipe(w, {end: false});
+                readableStream.on('end', () => {
+                    let nums = w.GetNumbers();
+                    w.ClearNumbers();
+                    resolve(nums)
+                })
+            })
+        }
+
+        // GenerateSequenceStream Max
+        num = (await promiseWrapper(r1, w1, Number.MAX_SAFE_INTEGER + 1, Number.MAX_SAFE_INTEGER + 10, 1))[0];
+        chai.expect(num).lte(0x1FFFFFFFFFFFFF);
+
+        // GenerateSequenceStream Min
+        num = (await promiseWrapper(r1, w1, Number.MIN_SAFE_INTEGER - 1, Number.MIN_SAFE_INTEGER - 10, 1))[0];
+        chai.expect(num).gte(-0x1FFFFFFFFFFFFF);
+    })
+
+    it('Check different random numbers on multiple instances', async () => {
+        const RangeToTest = 5;
+
+        let w1 = new TestWriteableStream({});
+        let r1 = new RandSeed();
+        let r2 = new RandSeed();
+        let r3 = new RandSeed();
+
+        let promiseWrapper = (r: any, w: TestWriteableStream) => {
+            return new Promise<Number[]>(resolve => {
+                let readableStream: Readable = r.GenerateSequenceStream(TEST_MIN, TEST_MAX, RangeToTest);
+                readableStream.pipe(w, {end: false});
+                readableStream.on('end', () => {
+                    let nums = w.GetNumbers();
+                    w.ClearNumbers();
+                    resolve(nums)
+                })
+            })
+        }
+
+        let p1: Number[] = await promiseWrapper(r1, w1);
+        let p2: Number[] = await promiseWrapper(r2, w1);
+        let p3: Number[] = await promiseWrapper(r3, w1);
+
+        chai.expect(p1).not.eq(p2).not.eq(p3)
+    })
+
+    it('Check different random numbers when setting seed to different values', async () => {
+        const RangeToTest = 5;
+
+        let w1 = new TestWriteableStream({});
+        let r1 = new RandSeed();
+
+        r1.SetSeed(TEST_SEED);
+
+        let promiseWrapper = (r: any, w: TestWriteableStream) => {
+            return new Promise<Number[]>(resolve => {
+                let readableStream: Readable = r.GenerateSequenceStream(TEST_MIN, TEST_MAX, RangeToTest);
+                readableStream.pipe(w, {end: false});
+                readableStream.on('end', () => {
+                    let nums = w.GetNumbers();
+                    w.ClearNumbers();
+                    resolve(nums)
+                })
+            })
+        }
+
+        let p1: Number[] = await promiseWrapper(r1, w1);
+        r1.SetSeed(TEST_SEED+1)
+        let p2: Number[] = await promiseWrapper(r1, w1);
+
+        chai.expect(p1).not.eq(p2);
+    })
     
     // TODO: Add these tests in future when implemented (TDD style)
     // 1. Test everything here, but with different types, BigInt64, Int64 (MAX_JS_NUMBER), uint32/int32, uint16/int16, uint8/int8, double

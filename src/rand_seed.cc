@@ -7,6 +7,7 @@
 #include <random>
 #include <iostream>
 #include <string>
+#include <sstream>
 #include <thread>
 #include <chrono>
 
@@ -136,12 +137,15 @@ napi_value RandSeed::Generate(napi_env env, napi_callback_info info) {
 
     NapiArgInt64 arg0, arg1;
     GetArgs(env, info, arg0, arg1);
-    int64_t min = arg0.GetVal();
-    int64_t max = arg1.GetVal();
+
+    int64_t min =  napi_extensions::LimitNumberBetweenJavascriptMinMax(arg0.GetVal());
+    int64_t max =  napi_extensions::LimitNumberBetweenJavascriptMinMax(arg1.GetVal());
 
     if (max < min) {
       // TODO: Replace all errors with this call
-        napi_throw_type_error(env, nullptr, "Max < Min. Min value must be less than Max");
+      std::stringstream ss;
+      ss << "Max < Min. Min: " << min << ", Max: " << max << std::endl;
+        napi_throw_type_error(env, nullptr, ss.str().c_str());
         return nullptr;
     }
     

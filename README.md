@@ -33,6 +33,17 @@ class RandSeed (implement NodeJS.Writeable stream) {
 };
 ```
 
+<h2>TODO</h2>
+<ul>
+    <li>Update README with how to use</li>
+    <li>Add typescript types</li>
+    <li>Change name</li>
+    <li>Add Travis CI for tests</li>
+    <li>Add Travis CI for builds</li>
+    <li>Add badge for dependencies</li>
+    <li>publish to npm</li>
+    <li>[FUTURE] Currently int64 only supported. Add other types: int8, uint8, int16, uint16, int32, uint32, double, big_int64, big_uint64</li>
+</ul>
 
 
 
