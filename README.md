@@ -1,3 +1,5 @@
+https://img.shields.io/david/Boese/node-rand
+
 <h1>NodeJS native addon wrapper around c++ random library</h1>
 
 Goal is to instead of allocating an array of size n, use the NodeJS Streaming API
