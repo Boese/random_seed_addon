@@ -1,6 +1,6 @@
-let RandSeed = require("../dist/random_seed.node").RandSeed
+let NodeRand = require("../dist/node_rand.node").NodeRand
 import { Writable, Readable } from 'stream'
-RandSeed.SetReadable(Readable) // required
+NodeRand.SetReadable(Readable) // required
 
 import 'mocha'
 import chai from 'chai'
@@ -38,8 +38,8 @@ class TestWriteableStream extends Writable {
 describe('Random Seed', () => {
 
     it('Check multiple instances with same seed', () => {
-        let a = new RandSeed();
-        let b = new RandSeed();
+        let a = new NodeRand();
+        let b = new NodeRand();
         a.SetSeed(11);
         b.SetSeed(11);
         let a_rand = a.Generate(TEST_MIN, TEST_MAX);
@@ -48,7 +48,7 @@ describe('Random Seed', () => {
     })
     it('Check resetting seed on same instance', () => {
         // Call rand() twice
-        let a = new RandSeed();
+        let a = new NodeRand();
         a.SetSeed(TEST_SEED);
 
         let num1 = a.Generate(TEST_MIN, TEST_MAX);
@@ -70,7 +70,7 @@ describe('Random Seed', () => {
 
         const RangeToTest = 100;
         
-        let a = new RandSeed();
+        let a = new NodeRand();
         a.SetSeed(TEST_SEED);
 
         // Get 3 random numbers
@@ -99,9 +99,9 @@ describe('Random Seed', () => {
         let w2 = new TestWriteableStream({});
         let w3 = new TestWriteableStream({});
 
-        let r1 = new RandSeed();
-        let r2 = new RandSeed();
-        let r3 = new RandSeed();
+        let r1 = new NodeRand();
+        let r2 = new NodeRand();
+        let r3 = new NodeRand();
 
         r1.SetSeed(TEST_SEED);
         r2.SetSeed(TEST_SEED);
@@ -126,7 +126,7 @@ describe('Random Seed', () => {
         const RangeToTest = 5;
 
         let w1 = new TestWriteableStream({});
-        let r1 = new RandSeed();
+        let r1 = new NodeRand();
 
         r1.SetSeed(TEST_SEED);
 
@@ -162,7 +162,7 @@ describe('Random Seed', () => {
         const loops = 10;
 
         let w1 = new TestWriteableStream({});
-        let r1 = new RandSeed();
+        let r1 = new NodeRand();
 
         r1.SetSeed(TEST_SEED);
 
@@ -191,7 +191,7 @@ describe('Random Seed', () => {
     })
 
     it('Check Number.MIN_SAFE_INTEGER <= number <= Number.MAX_SAFE_INTEGER', async () => {
-        let r1 = new RandSeed();
+        let r1 = new NodeRand();
 
         // Generate Max
         let num = r1.Generate(Number.MAX_SAFE_INTEGER + 1, Number.MAX_SAFE_INTEGER + 10);
@@ -228,9 +228,9 @@ describe('Random Seed', () => {
         const RangeToTest = 5;
 
         let w1 = new TestWriteableStream({});
-        let r1 = new RandSeed();
-        let r2 = new RandSeed();
-        let r3 = new RandSeed();
+        let r1 = new NodeRand();
+        let r2 = new NodeRand();
+        let r3 = new NodeRand();
 
         let promiseWrapper = (r: any, w: TestWriteableStream) => {
             return new Promise<Number[]>(resolve => {
@@ -255,7 +255,7 @@ describe('Random Seed', () => {
         const RangeToTest = 5;
 
         let w1 = new TestWriteableStream({});
-        let r1 = new RandSeed();
+        let r1 = new NodeRand();
 
         r1.SetSeed(TEST_SEED);
 

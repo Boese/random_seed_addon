@@ -1,7 +1,7 @@
-//let RandSeed = require("./build/Debug/random_seed.node").RandSeed
-let RandSeed = require("./random_seed.node").RandSeed
+//let NodeRand = require("./build/Debug/random_seed.node").NodeRand
+let NodeRand = require("./node_rand.node").NodeRand
 import { Writable, Readable } from 'stream'
-RandSeed.SetReadable(Readable) // required
+NodeRand.SetReadable(Readable) // required
 
 let i = 0;
 let randNumers = [];
@@ -50,15 +50,15 @@ let w = new Writable({
     
 */
 
-// RandSeed to inherit from Readable
-let randSeedAddon = new RandSeed();
-randSeedAddon.SetSeed(2);
-console.log(randSeedAddon.Generate(0,10));
-randSeedAddon.GenerateSequenceStream(-10, 10, 1000).pipe(w, {end: false});
-randSeedAddon.GenerateSequenceStream(-10, 10, 1000).pipe(w, {end: false});
-randSeedAddon.GenerateSequenceStream(-10, 10, 1000).pipe(w, {end: false});
-randSeedAddon.GenerateSequenceStream(-10, 10, 1000).pipe(w, {end: false});
-randSeedAddon.GenerateSequenceStream(-10, 10, 1000).pipe(w, {end: false});
+// NodeRand to inherit from Readable
+let NodeRandAddon = new NodeRand();
+NodeRandAddon.SetSeed(2);
+console.log(NodeRandAddon.Generate(0,10));
+NodeRandAddon.GenerateSequenceStream(-10, 10, 1000).pipe(w, {end: false});
+NodeRandAddon.GenerateSequenceStream(-10, 10, 1000).pipe(w, {end: false});
+NodeRandAddon.GenerateSequenceStream(-10, 10, 1000).pipe(w, {end: false});
+NodeRandAddon.GenerateSequenceStream(-10, 10, 1000).pipe(w, {end: false});
+NodeRandAddon.GenerateSequenceStream(-10, 10, 1000).pipe(w, {end: false});
 
 console.log('start interval')
 setInterval(() => {

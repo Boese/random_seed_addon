@@ -1,4 +1,4 @@
-#include "rand_seed_stream.h"
+#include "NodeRandStream.h"
 #include "napi_extenstions.hpp"
 #include <node_api.h>
 #include <assert.h>
@@ -9,18 +9,18 @@
 #include <thread>
 #include <chrono>
 
-using namespace rand_addon;
+using namespace node_rand;
 using namespace napi_extensions;
 
 /// \brief 16kb is max buffer size for Node JS Readable stream. 16kb -> 2000 bytes to represent int64_t
 static const uint32_t MAX_BUFFER_SIZE = 2000;
 
-void RandSeedStream::ThreadSafeFunctionFinalized(napi_env env, void* finalize_data, void* finalize_hint)
+void NodeRandStream::ThreadSafeFunctionFinalized(napi_env env, void* finalize_data, void* finalize_hint)
 {
     std::cout << "ThreadSafeFunctionFinalized" << std::endl;
 }
 
-void RandSeedStream::ExecuteThreadSafeFunction(napi_env env, napi_value js_cb, void* context, void* data)
+void NodeRandStream::ExecuteThreadSafeFunction(napi_env env, napi_value js_cb, void* context, void* data)
 {
     std::cout << "ExecuteThreadSafeFunction" << std::endl;
     (void)context; // not used
@@ -77,7 +77,7 @@ void RandSeedStream::ExecuteThreadSafeFunction(napi_env env, napi_value js_cb, v
 }
 
 // NOTE: CANNOT EXECUTE JS IN THIS BLOCK! HAS TO BE DONE FROM TSFN!
-void RandSeedStream::ExecuteAsyncFunction(napi_env env, void* data)
+void NodeRandStream::ExecuteAsyncFunction(napi_env env, void* data)
 {
     std::cout << "ExecuteAsyncFunction" << std::endl;
     AsyncFunctionData* async_data = (AsyncFunctionData*)data;
@@ -115,7 +115,7 @@ void RandSeedStream::ExecuteAsyncFunction(napi_env env, void* data)
                                           napi_tsfn_release) == napi_ok);
 }
 
-void RandSeedStream::CompleteAsyncFunction(napi_env env, napi_status status, void* data)
+void NodeRandStream::CompleteAsyncFunction(napi_env env, napi_status status, void* data)
 {
     AsyncFunctionData* async_data = (AsyncFunctionData*)data;
     std::cout << "CompleteAsyncFunction" << std::endl;
@@ -131,7 +131,7 @@ void RandSeedStream::CompleteAsyncFunction(napi_env env, napi_status status, voi
 }
 
 
-napi_value RandSeedStream::NewInstance(napi_env env, napi_ref readableCtorRef, int64_t seed, int64_t min, int64_t max, uint32_t count) {
+napi_value NodeRandStream::NewInstance(napi_env env, napi_ref readableCtorRef, int64_t seed, int64_t min, int64_t max, uint32_t count) {
 
     std::cout << "New Instance: seed: " << seed << std::endl;
 
@@ -180,7 +180,7 @@ napi_value RandSeedStream::NewInstance(napi_env env, napi_ref readableCtorRef, i
     status = napi_get_named_property(env, readable_instance, "push", &push_func);
     assert(status == napi_ok);
 
-    // TODO: Put CallJS, executeFunc, completeFunc in RandSeedStream class
+    // TODO: Put CallJS, executeFunc, completeFunc in NodeRandStream class
     // Create thread safe function
     status = napi_create_threadsafe_function(env, push_func, nullptr, tsfn_name, 0, 1, nullptr, ThreadSafeFunctionFinalized, nullptr, ExecuteThreadSafeFunction, &(async_data->tsfn));
     assert(status == napi_ok);

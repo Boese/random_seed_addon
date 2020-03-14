@@ -6,17 +6,17 @@
 #include <memory>
 #include <iostream>
 
-namespace rand_addon {
+namespace node_rand {
 
-/// \class RandSeed
+/// \class NodeRand
 /// \brief c++ addon to generate reproducible random number sequences based off a seed
-class RandSeed {
+class NodeRand {
 private:
     /// \brief ctor
-    explicit RandSeed();
+    explicit NodeRand();
 
     /// \brief dtor
-    ~RandSeed();
+    ~NodeRand();
 
     /// \brief Used to set m_readableCtor. Must call before using class.
     /// \param arg0 - Node JS Readable Function

@@ -4,9 +4,9 @@
 #include <random>
 #include <memory>
 
-namespace rand_addon {
+namespace node_rand {
 
-class RandSeedStream /* extends Node JS Readable */ {
+class NodeRandStream /* extends Node JS Readable */ {
 private:
     /// \brief data needed during async function queue
     struct AsyncFunctionData {
@@ -61,7 +61,7 @@ private:
     static napi_value _read(napi_env env, napi_callback_info info) { return nullptr; }
 
 public:
-    RandSeedStream() = delete;
+    NodeRandStream() = delete;
 
     /// \brief Instantiate class either using new or function() syntax
     /// \return this
