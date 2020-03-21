@@ -1,11 +1,10 @@
-let NodeRand = require("../dist/node_rand.node").NodeRand
-import { Writable, Readable } from 'stream'
-NodeRand.SetReadable(Readable) // required
+import { NodeRand } from '../src'
+import { Readable, Writable } from 'stream'
 
 import 'mocha'
-import chai from 'chai'
-import sinon from 'sinon'
-import sinonChai from 'sinon-chai'
+import chai = require('chai')
+import sinon = require('sinon')
+import sinonChai = require('sinon-chai')
 chai.use(sinonChai)
 
 const TEST_SEED=10;
@@ -216,11 +215,11 @@ describe('Random Seed', () => {
         }
 
         // GenerateSequenceStream Max
-        num = (await promiseWrapper(r1, w1, Number.MAX_SAFE_INTEGER + 1, Number.MAX_SAFE_INTEGER + 10, 1))[0];
+        let num2 = (await promiseWrapper(r1, w1, Number.MAX_SAFE_INTEGER + 1, Number.MAX_SAFE_INTEGER + 10, 1))[0];
         chai.expect(num).lte(0x1FFFFFFFFFFFFF);
 
         // GenerateSequenceStream Min
-        num = (await promiseWrapper(r1, w1, Number.MIN_SAFE_INTEGER - 1, Number.MIN_SAFE_INTEGER - 10, 1))[0];
+        num2 = (await promiseWrapper(r1, w1, Number.MIN_SAFE_INTEGER - 1, Number.MIN_SAFE_INTEGER - 10, 1))[0];
         chai.expect(num).gte(-0x1FFFFFFFFFFFFF);
     })
 

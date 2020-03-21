@@ -39,7 +39,6 @@ class RandSeed (implement NodeJS.Writeable stream) {
 <h2>TODO</h2>
 <ul>
     <li>Update README with how to use</li>
-    <li>Add typescript types</li>
     <li>Add Travis CI for tests</li>
     <li>Add Travis CI for builds</li>
     <li>Add badge for dependencies, coverage, builds</li>

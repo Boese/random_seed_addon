@@ -40,18 +40,25 @@ void NodeRand::Destructor(napi_env env,
 }
 
 napi_value NodeRand::Init(napi_env env, napi_value exports) {
-  napi_property_descriptor properties[] = {
-    { "SetReadable", 0, SetReadable, 0, 0, 0, napi_static, 0 },
+  napi_property_descriptor NodeRandProps[] = {
     { "SetSeed", 0, SetSeed, 0, 0, 0, napi_default, 0 },
     { "Generate", 0, Generate, 0, 0, 0, napi_default, 0 },
     { "GenerateSequenceStream", 0, GenerateSequenceStream, 0, 0, 0, napi_default, 0 }
   };
-  size_t properties_count = sizeof(properties) / sizeof(properties[0]);
 
+  napi_property_descriptor StaticProps[] = {
+    { "SetReadable", 0, SetReadable, 0, 0, 0, napi_static, 0 }
+  };
+
+  // export NodeRand
   napi_value cons;
-  CheckStatus(napi_define_class(env, "NodeRand", NAPI_AUTO_LENGTH, New, nullptr, properties_count, properties, &cons), env, "Define class");
+  CheckStatus(napi_define_class(env, "NodeRand", NAPI_AUTO_LENGTH, New, nullptr, 
+    sizeof(NodeRandProps) / sizeof(NodeRandProps[0]), NodeRandProps, &cons), env, "Define class");
   CheckStatus(napi_create_reference(env, cons, 1, &m_constructor), env, "Create class reference");
   CheckStatus(napi_set_named_property(env, exports, "NodeRand", cons), env, "Set ctor property");
+
+  // export SetReadable
+  CheckStatus(napi_define_properties(env, exports, 1, StaticProps), env, "Set static properties");
 
   return exports;
 }
@@ -66,9 +73,7 @@ napi_value NodeRand::New(napi_env env, napi_callback_info info) {
   if (m_constructor) {
     // Invoked as constructor: `new NodeRand()`
     napi_value jsthis;
-    size_t argc = 1;
-    napi_value args[1];
-    status = napi_get_cb_info(env, info, &argc, args, &jsthis, nullptr);
+    status = napi_get_cb_info(env, info, nullptr, nullptr, &jsthis, nullptr);
     assert(status == napi_ok);
 
     NodeRand* rSeed = new NodeRand();
