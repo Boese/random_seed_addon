@@ -2,10 +2,10 @@
   "name": "node-rand",
   "version": "1.0.0",
   "description": "Node JS Addon wrapping c++ rng for seed-random reproducibility",
-  "main": "index.js",
-  "types": "index.d.ts",
+  "main": "dist/index.js",
+  "types": "src/index.d.ts",
   "scripts": {
-    "test": "mocha -r ts-node/register test/**/*.spec.ts",
+    "test": "npm run build && mocha -r ts-node/register test/**/*.spec.ts",
     "build": "cd ./src && node-gyp configure && node-gyp build -j 4 --release && cd ../ && tsc && copy src\\build\\Release\\node_rand.node dist\\ /Y && copy src\\build\\Release\\node_rand.node src\\ /Y",
     "build:dev": "cd ./src && node-gyp configure && node-gyp build -j 4 --debug && cd ../ && tsc && copy src\\build\\Debug\\node_rand.node dist\\ /Y && copy src\\build\\Debug\\node_rand.node dist\\ /Y"
   },
