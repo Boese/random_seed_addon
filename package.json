@@ -6,8 +6,8 @@
   "types": "src/index.d.ts",
   "scripts": {
     "test": "npm run build && mocha -r ts-node/register test/**/*.spec.ts",
-    "build": "cd ./src && node-gyp configure && node-gyp build -j 4 --release && cd ../ && tsc && copy src\\build\\Release\\node_rand.node dist\\ /Y && copy src\\build\\Release\\node_rand.node src\\ /Y",
-    "build:dev": "cd ./src && node-gyp configure && node-gyp build -j 4 --debug && cd ../ && tsc && copy src\\build\\Debug\\node_rand.node dist\\ /Y && copy src\\build\\Debug\\node_rand.node dist\\ /Y"
+    "build": "cd ./src && node-gyp configure && node-gyp build -j 4 --release && cd ../ && tsc && grunt",
+    "build:dev": "cd ./src && node-gyp configure && node-gyp build -j 4 --debug && cd ../ && tsc && grunt copy-debug"
   },
   "keywords": [
     "C++",
@@ -26,6 +26,8 @@
     "@types/sinon": "^7.5.2",
     "@types/sinon-chai": "^3.2.3",
     "chai": "^4.2.0",
+    "grunt": "^1.1.0",
+    "grunt-contrib-copy": "^1.0.0",
     "minimist": "^1.2.5",
     "mocha": "^6.2.2",
     "node-addon-api": "^2.0.0",
