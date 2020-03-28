@@ -4,17 +4,23 @@
       'target_name': 'node_rand',
       'sources': [ 'NodeRand.cc', 'NodeRandStream.cc' ],
       "conditions": [['OS=="win"', {
-         'msvs-settings':
+         'msvs_settings':
           {
             'VCCLCompilerTool':
             {
               'AdditionalOptions':
                 [
-                '-std:c++17',
+                '/std:c++17',
                 ]
             }
           }
-        }]
+        }],
+        ['OS=="linux"', {
+         'cflags_cc': [
+           '-std=c++17'
+         ]
+        }
+        ]
       ]
     }
   ],

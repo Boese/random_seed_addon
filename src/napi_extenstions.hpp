@@ -10,6 +10,7 @@
 #include <memory>
 #include <array>
 #include <type_traits>
+#include <sstream>
 
 namespace napi_extensions
 {
@@ -19,16 +20,18 @@ namespace napi_extensions
 inline void CheckStatus(napi_status status, napi_env env, const std::string& message = "unknown")
 {
     if (status != napi_ok) {
-        printf("[ERROR] %s\n", message.c_str());
 
         const napi_extended_error_info* info;
         napi_get_last_error_info(env, (const napi_extended_error_info**)&info);
-        printf("\tnapi error code: %x\n", info->error_code);
-        printf("\tengine error code: %x\n", info->engine_error_code);
-        printf("\tmessage: %s\n", info->error_message);
+
+        std::stringstream ss;
+        ss << "[ERROR]: " << message << "\n";
+        ss << "\tnapi error code: " << info->error_code << "\n";
+        ss << "\tengine error code: " << info->engine_error_code << "\n";
+        ss << "\tmessage: " << info->error_message << "\n";
         delete info;
 
-        throw new std::runtime_error(message);
+        napi_throw_type_error(env, nullptr, ss.str().c_str());
     }
 }
 
@@ -140,7 +143,7 @@ status = napi_extensions::napi_inherits(env, info, ctor, super_ctor, 0, nullptr)
 assert(status == napi_ok);
 
 */
-static napi_status napi_inherits(napi_env env,           // Node-api env
+[[maybe_unused]] static napi_status napi_inherits(napi_env env,           // Node-api env
                         napi_callback_info info,  // Node-api callback info
                         napi_value ctor,          // NodeJS child Function
                         napi_value superCtor,     // NodeJS parent Function

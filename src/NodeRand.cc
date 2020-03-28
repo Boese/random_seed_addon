@@ -68,7 +68,6 @@ napi_value NodeRand::New(napi_env env, napi_callback_info info) {
   napi_status status;
   napi_value target;
   CheckStatus(napi_get_new_target(env, info, &target), env, "New::get_target");
-  bool is_constructor = target != nullptr;
 
   if (m_constructor) {
     // Invoked as constructor: `new NodeRand()`
