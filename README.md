@@ -1,5 +1,6 @@
 ![David](https://img.shields.io/david/Boese/node-rand)
 ![David](https://img.shields.io/david/dev/Boese/node-rand)
+![Travis (.com)](https://img.shields.io/travis/com/Boese/node-rand)
 
 <h1>NodeJS native addon wrapper around c++ random library</h1>
 
@@ -39,8 +40,7 @@ class RandSeed (implement NodeJS.Writeable stream) {
 <h2>TODO</h2>
 <ul>
     <li>Update README with how to use</li>
-    <li>Add Travis CI for builds</li>
-    <li>Add badge for coverage, builds</li>
+    <li>Add badge for coverage</li>
     <li>publish to npm</li>
     <li>[FUTURE] Currently int64 only supported. Add other types: int8, uint8, int16, uint16, int32, uint32, double, big_int64, big_uint64</li>
 </ul>
