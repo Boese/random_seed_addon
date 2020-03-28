@@ -62,15 +62,16 @@ private:
     // TODO: Move this to a new file!!
     /// \brief Singleton queue of int64_t of random numbers for async sequence calls
     class GlobalBuffer {
-        const uint64_t BufferMax{1000};
+        static const uint64_t BufferMax{1000};
         std::queue<int64_t> m_buffer;
         std::mt19937 m_generator;
-        const std::uniform_int_distribution<int64_t> m_distribution;
+        std::uniform_int_distribution<int64_t> m_distribution;
 
         void FillBuffer()
         {
             // Clear buffer
-            m_buffer.swap(std::queue<int64_t>{});
+            std::queue<int64_t> empty;
+            m_buffer.swap(empty);
 
             // Fill Buffer
             for (size_t i = 0; i < BufferMax; i++) {
@@ -83,7 +84,7 @@ private:
         GlobalBuffer() : m_buffer(), m_generator(std::random_device{}()), 
             m_distribution(std::numeric_limits<int64_t>::min(), std::numeric_limits<int64_t>::max()) {}
 
-        void SetSeed(int64_t seed) {
+        void SetSeed(const int64_t seed) {
             m_generator.seed(seed);
             FillBuffer();
         }
