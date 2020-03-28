@@ -143,7 +143,7 @@ status = napi_extensions::napi_inherits(env, info, ctor, super_ctor, 0, nullptr)
 assert(status == napi_ok);
 
 */
-[[maybe_unused]] static napi_status napi_inherits(napi_env env,           // Node-api env
+static napi_status napi_inherits(napi_env env,           // Node-api env
                         napi_callback_info info,  // Node-api callback info
                         napi_value ctor,          // NodeJS child Function
                         napi_value superCtor,     // NodeJS parent Function
