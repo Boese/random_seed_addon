@@ -69,9 +69,8 @@ private:
 
         void FillBuffer()
         {
-            static std::queue<int64_t> empty{};
             // Clear buffer
-            m_buffer.swap(empty);
+            m_buffer.swap(std::queue<int64_t>{});
 
             // Fill Buffer
             for (size_t i = 0; i < BufferMax; i++) {
