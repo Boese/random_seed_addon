@@ -86,20 +86,20 @@ public:
 };
 
 template<typename T>
-void _GetArgs(napi_env env, napi_callback_info info, napi_value* argv, size_t& argv_index, T& arg)
+inline void _GetArgs(napi_env env, napi_callback_info info, napi_value* argv, size_t& argv_index, T& arg)
 {
     arg.SetVal(env, argv[argv_index]);
 }
 
 template<typename T, typename ...Args>
-void _GetArgs(napi_env env, napi_callback_info info, napi_value* argv, size_t& argv_index, T& arg, Args& ...args)
+inline void _GetArgs(napi_env env, napi_callback_info info, napi_value* argv, size_t& argv_index, T& arg, Args& ...args)
 {
     arg.SetVal(env, argv[argv_index]);
     _GetArgs(env, info, argv, ++argv_index, args...);
 }
 
 template<typename ...Args>
-void GetArgs(napi_env env, napi_callback_info info, Args& ...args)
+inline void GetArgs(napi_env env, napi_callback_info info, Args& ...args)
 {
     const std::size_t n = sizeof...(Args);
     size_t argc = n;
@@ -115,7 +115,8 @@ void GetArgs(napi_env env, napi_callback_info info, Args& ...args)
 /*
     Unwrap jsthis into class instance
 */
-template<class T> T* GetSelf(napi_env env, napi_callback_info info) {
+template<class T> 
+inline T* GetSelf(napi_env env, napi_callback_info info) {
     napi_value jsthis;
     CheckStatus(napi_get_cb_info(env, info, nullptr, nullptr, &jsthis, nullptr), env, "Failed to get jsthis in napi_extensions::GetSelf");
     T* self = nullptr;
@@ -143,7 +144,7 @@ status = napi_extensions::napi_inherits(env, info, ctor, super_ctor, 0, nullptr)
 assert(status == napi_ok);
 
 */
-static napi_status napi_inherits(napi_env env,           // Node-api env
+inline napi_status napi_inherits(napi_env env,           // Node-api env
                         napi_callback_info info,  // Node-api callback info
                         napi_value ctor,          // NodeJS child Function
                         napi_value superCtor,     // NodeJS parent Function
