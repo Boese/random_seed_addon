@@ -1,4 +1,7 @@
 {
+  'defines': [
+    "NAPI_VERSION=4"
+  ],
   'targets': [
     {
       'target_name': 'node_rand',

@@ -193,11 +193,11 @@ describe('Random Seed', () => {
         let r1 = new NodeRand();
 
         // Generate Max
-        let num = r1.Generate(Number.MAX_SAFE_INTEGER + 1, Number.MAX_SAFE_INTEGER + 10);
+        let num = r1.Generate(Number.MAX_SAFE_INTEGER, Number.MAX_SAFE_INTEGER);
         chai.expect(num).lte(Number.MAX_SAFE_INTEGER);
 
         // Generate Min
-        num = r1.Generate(Number.MIN_SAFE_INTEGER - 1, Number.MIN_SAFE_INTEGER - 10);
+        num = r1.Generate(Number.MIN_SAFE_INTEGER, Number.MIN_SAFE_INTEGER);
         chai.expect(num).gte(-Number.MAX_SAFE_INTEGER);
 
         let w1 = new TestWriteableStream({});
@@ -215,11 +215,11 @@ describe('Random Seed', () => {
         }
 
         // GenerateSequenceStream Max
-        let num2 = (await promiseWrapper(r1, w1, Number.MAX_SAFE_INTEGER + 1, Number.MAX_SAFE_INTEGER + 10, 1))[0];
+        let num2 = (await promiseWrapper(r1, w1, Number.MAX_SAFE_INTEGER, Number.MAX_SAFE_INTEGER, 1))[0];
         chai.expect(num).lte(0x1FFFFFFFFFFFFF);
 
         // GenerateSequenceStream Min
-        num2 = (await promiseWrapper(r1, w1, Number.MIN_SAFE_INTEGER - 1, Number.MIN_SAFE_INTEGER - 10, 1))[0];
+        num2 = (await promiseWrapper(r1, w1, Number.MIN_SAFE_INTEGER, Number.MIN_SAFE_INTEGER, 1))[0];
         chai.expect(num).gte(-0x1FFFFFFFFFFFFF);
     })
 

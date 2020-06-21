@@ -134,6 +134,7 @@ void NodeRandStream::CompleteAsyncFunction(napi_env env, napi_status status, voi
 napi_value NodeRandStream::NewInstance(napi_env env, napi_ref readableCtorRef, int64_t seed, int64_t min, int64_t max, uint32_t count) {
 
     std::cout << "New Instance: seed: " << seed << std::endl;
+    assert(min <= max);
 
     // Start async work
     napi_value readableCtor;

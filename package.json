@@ -5,9 +5,7 @@
   "main": "dist/index.js",
   "types": "src/index.d.ts",
   "scripts": {
-    "test": "npm run build && mocha -r ts-node/register test/**/*.spec.ts",
-    "build": "cd ./src && node-gyp configure && node-gyp build -j 4 --release && cd ../ && tsc && grunt",
-    "build:dev": "cd ./src && node-gyp configure && node-gyp build -j 4 --debug && cd ../ && tsc && grunt copy-debug"
+    "test": "grunt build:release && tsc && grunt copy:release && grunt mochaTest"
   },
   "keywords": [
     "C++",
@@ -17,24 +15,30 @@
     "Seed",
     "Generator"
   ],
+  "binary": {
+    "napi_version": [
+      4
+    ]
+  },
   "author": "Chris Boese",
   "license": "ISC",
   "devDependencies": {
     "@types/chai": "^4.2.11",
     "@types/mocha": "^5.2.7",
-    "@types/node": "^13.11.0",
+    "@types/node": "^13.13.12",
     "@types/sinon": "^7.5.2",
     "@types/sinon-chai": "^3.2.4",
     "chai": "^4.2.0",
     "grunt": "^1.1.0",
     "grunt-contrib-copy": "^1.0.0",
+    "grunt-mocha-test": "^0.13.3",
     "minimist": "^1.2.5",
     "mocha": "^6.2.3",
-    "node-addon-api": "^2.0.0",
+    "node-addon-api": "^2.0.1",
     "sinon": "^8.1.1",
     "sinon-chai": "^3.5.0",
-    "ts-node": "^8.8.1",
-    "typescript": "^3.8.3"
+    "ts-node": "^8.10.2",
+    "typescript": "^3.9.5"
   },
   "dependencies": {}
 }
