@@ -23,22 +23,22 @@
   "author": "Chris Boese",
   "license": "ISC",
   "devDependencies": {
-    "@types/chai": "^4.2.11",
-    "@types/mocha": "^5.2.7",
-    "@types/node": "^13.13.12",
-    "@types/sinon": "^7.5.2",
+    "@types/chai": "^4.2.12",
+    "@types/mocha": "^8.0.1",
+    "@types/node": "^14.0.27",
+    "@types/sinon": "^9.0.4",
     "@types/sinon-chai": "^3.2.4",
     "chai": "^4.2.0",
-    "grunt": "^1.1.0",
+    "grunt": "^1.2.1",
     "grunt-contrib-copy": "^1.0.0",
     "grunt-mocha-test": "^0.13.3",
     "minimist": "^1.2.5",
-    "mocha": "^6.2.3",
-    "node-addon-api": "^2.0.1",
-    "sinon": "^8.1.1",
+    "mocha": "^8.1.1",
+    "node-addon-api": "^3.0.0",
+    "sinon": "^9.0.2",
     "sinon-chai": "^3.5.0",
     "ts-node": "^8.10.2",
-    "typescript": "^3.9.5"
+    "typescript": "^3.9.7"
   },
   "dependencies": {}
 }
