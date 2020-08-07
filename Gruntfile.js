@@ -1,3 +1,5 @@
+const childprocess = require('child_process');
+
 module.exports = function(grunt) {
 
     grunt.initConfig({
@@ -39,19 +41,29 @@ module.exports = function(grunt) {
 
       let done = this.async();
 
-      let nodeGypCmd = 'node-gyp';
-      let nodeGypArgs = ["configure", "&&", "node-gyp", "build", "-j", "4", `--${this.target}`]
+      const nodeCWD = 'src';
+      const nodeGypCmd = 'node-gyp';
+      const nodeGypConfigureArgs = ["configure", `--${this.target}`]
+      const nodeGypBuildArgs = ["build", "-j", "4", `--${this.target}`]
 
-      grunt.util.spawn({cmd: nodeGypCmd, args: nodeGypArgs, opts: {cwd: 'src'}}, function(error, result, code) {
-        if (error) {
-          grunt.fail.fatal(error);
-        }
+      // Configure
+      grunt.log.debug(`Executing: ${nodeGypCmd}`, ...nodeGypConfigureArgs);      
+      ({pid, output, stdout, stderr, status, signal, error} = childprocess.spawnSync(nodeGypCmd, nodeGypConfigureArgs, {cwd: nodeCWD, shell: true, stdio: 'inherit', windowsHide: true}));
+      if (error) {
+        grunt.fail.fatal(error);
+      }
 
-        grunt.log.ok("Finished Executing."); 
-        return done();
-      });
+      // Build
+      grunt.log.debug(`Executing: ${nodeGypCmd}`, ...nodeGypBuildArgs);      
+      ({pid, output, stdout, stderr, status, signal, error} = childprocess.spawnSync(nodeGypCmd, nodeGypBuildArgs, {cwd: nodeCWD, shell: true, stdio: 'inherit', windowsHide: true}));
+      if (error) {
+        grunt.fail.fatal(error);
+      }
 
-      grunt.log.debug(`Executing: ${nodeGypCmd}`, ...nodeGypArgs);
+      grunt.log.ok("Finished Executing."); 
+      return done();
+
+      
     });
 
   };
