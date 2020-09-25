@@ -22,13 +22,38 @@ public:
     }
 
     template<class Generator>
+    ParamT Generate(Generator& generator) {
+        return static_cast<ParamT>(m_distribution(generator));
+    }
+
+    template<class Generator>
     const ParamT Generate(Generator& generator) const {
         return static_cast<ParamT>(m_distribution(generator));
     }
 };
 
 /**
- * Uniform Distribution RNG(S)
+ * Uniform Distribution RNG(s)
+ * 
+ * Example:
+ *  // Example generating random uint64_t
+ *  std::mt19937 generator(std::random_device{}());
+ *  const uint64_t a = 0;
+ *  const uint64_t b = 2000;
+ *  NodeRNGUniformDistribution rng(a, b);
+ *  const uint64_t result = rng.Generate(generator);
+ * 
+ *  // Example generating random int8_t using an int16_t distribution bound by int8_t
+ *  const int8_t a2 = 0;
+ *  const int8_t b2 = 10;
+ *  NodeRNGUniformDistribution<int8_t, int16_t> rng2(a2, b2);
+ *  const int8_t result2 = rng2.Generate(generator);
+ * 
+ *  // Example generating random double
+ *  const double a3 = 0;
+ *  const double b3 = 1;
+ *  NodeRNGUniformDistribution rng3(a3, b3);
+ *  double result3 = rng3.Generate(generator);
  * 
  */
 template<typename ParamT, typename DistT, typename Enable = void>
