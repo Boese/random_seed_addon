@@ -4,11 +4,16 @@
 
 import { Readable } from 'stream'
 
-declare class NodeRand {
+export class NodeRand_mt19937 {
   constructor();
-
   SetSeed(seed:number): void;
   Generate(min:number, max:number): number;
   GenerateSequenceStream(min:number, max:number, count:number): Readable;
 }
 
+export class NodeRand_mt19937_64 {
+  constructor();
+  SetSeed(seed:number): void;
+  Generate(min:number, max:number): number;
+  GenerateSequenceStream(min:number, max:number, count:number): Readable;
+}

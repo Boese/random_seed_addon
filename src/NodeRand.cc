@@ -10,14 +10,18 @@
 #include <sstream>
 #include <thread>
 #include <chrono>
+#include <type_traits>
 
 using namespace node_rand;
 using namespace napi_extensions;
 
-napi_ref NodeRand::m_constructor;
-napi_ref NodeRand::m_readableCtor;
+template<class GENERATOR>
+napi_ref NodeRand<GENERATOR>::m_constructor;
+template<class GENERATOR>
+napi_ref NodeRand<GENERATOR>::m_readableCtor;
 
-napi_value NodeRand::SetReadable(napi_env env, napi_callback_info info)
+template<class GENERATOR>
+napi_value NodeRand<GENERATOR>::SetReadable(napi_env env, napi_callback_info info)
 {
   size_t argc = 1;
   napi_value args[1];
@@ -27,43 +31,43 @@ napi_value NodeRand::SetReadable(napi_env env, napi_callback_info info)
   return nullptr;
 }
 
-NodeRand::NodeRand() : m_env(nullptr), m_wrapper(nullptr), m_seedReset(false), m_GlobalBuffer(), m_generator(std::random_device{}()) {}
+template<class GENERATOR>
+NodeRand<GENERATOR>::NodeRand() : m_env(nullptr), m_wrapper(nullptr), m_seedReset(false), m_GlobalBuffer(), m_generator(std::random_device{}()) {}
 
-NodeRand::~NodeRand() {
+template<class GENERATOR>
+NodeRand<GENERATOR>::~NodeRand() {
     napi_delete_reference(m_env, m_wrapper);
 }
 
-void NodeRand::Destructor(napi_env env,
+template<class GENERATOR>
+void NodeRand<GENERATOR>::Destructor(napi_env env,
                           void* nativeObject,
                           void* /*finalize_hint*/) {
   reinterpret_cast<NodeRand*>(nativeObject)->~NodeRand();
 }
 
-napi_value NodeRand::Init(napi_env env, napi_value exports) {
+template<class GENERATOR>
+napi_value NodeRand<GENERATOR>::Init(const std::string& generatorName, napi_env env, napi_value exports) {
   napi_property_descriptor NodeRandProps[] = {
     { "SetSeed", 0, SetSeed, 0, 0, 0, napi_default, 0 },
     { "Generate", 0, Generate, 0, 0, 0, napi_default, 0 },
-    { "GenerateSequenceStream", 0, GenerateSequenceStream, 0, 0, 0, napi_default, 0 }
-  };
-
-  napi_property_descriptor StaticProps[] = {
+    { "GenerateSequenceStream", 0, GenerateSequenceStream, 0, 0, 0, napi_default, 0 },
     { "SetReadable", 0, SetReadable, 0, 0, 0, napi_static, 0 }
   };
 
-  // export NodeRand
+  // export NodeRand<GENERATOR>
   napi_value cons;
-  CheckStatus(napi_define_class(env, "NodeRand", NAPI_AUTO_LENGTH, New, nullptr, 
+  const std::string className = std::string("NodeRand_" + generatorName);
+  CheckStatus(napi_define_class(env, className.c_str(), NAPI_AUTO_LENGTH, New, nullptr, 
     sizeof(NodeRandProps) / sizeof(NodeRandProps[0]), NodeRandProps, &cons), env, "Define class");
   CheckStatus(napi_create_reference(env, cons, 1, &m_constructor), env, "Create class reference");
-  CheckStatus(napi_set_named_property(env, exports, "NodeRand", cons), env, "Set ctor property");
-
-  // export SetReadable
-  CheckStatus(napi_define_properties(env, exports, 1, StaticProps), env, "Set static properties");
+  CheckStatus(napi_set_named_property(env, exports, className.c_str(), cons), env, "Set ctor property");
 
   return exports;
 }
 
-napi_value NodeRand::New(napi_env env, napi_callback_info info) {
+template<class GENERATOR>
+napi_value NodeRand<GENERATOR>::New(napi_env env, napi_callback_info info) {
   assert(m_readableCtor != nullptr && "Must call SetReadable(Readable) before using class!");
   napi_status status;
   napi_value target;
@@ -75,7 +79,7 @@ napi_value NodeRand::New(napi_env env, napi_callback_info info) {
     status = napi_get_cb_info(env, info, nullptr, nullptr, &jsthis, nullptr);
     assert(status == napi_ok);
 
-    NodeRand* rSeed = new NodeRand();
+    NodeRand* rSeed = new NodeRand<GENERATOR>();
 
     rSeed->m_env = env;
     status = napi_wrap(env,
@@ -105,8 +109,9 @@ napi_value NodeRand::New(napi_env env, napi_callback_info info) {
   }
 }
 
-napi_value NodeRand::SetSeed(napi_env env, napi_callback_info info) {
-  NodeRand* rSeed = GetSelf<NodeRand>(env, info);
+template<class GENERATOR>
+napi_value NodeRand<GENERATOR>::SetSeed(napi_env env, napi_callback_info info) {
+  NodeRand<GENERATOR>* rSeed = GetSelf<NodeRand<GENERATOR>>(env, info);
 
   // Get seed if specified. If not use std::random_device()
   size_t argc = 1;
@@ -129,8 +134,9 @@ napi_value NodeRand::SetSeed(napi_env env, napi_callback_info info) {
   return nullptr;
 }
 
-napi_value NodeRand::Generate(napi_env env, napi_callback_info info) {
-    NodeRand* rSeed = GetSelf<NodeRand>(env, info);
+template<class GENERATOR>
+napi_value NodeRand<GENERATOR>::Generate(napi_env env, napi_callback_info info) {
+    NodeRand<GENERATOR>* rSeed = GetSelf<NodeRand<GENERATOR>>(env, info);
 
     if (rSeed->m_seedReset) {
       auto fakeSeed = rSeed->m_GlobalBuffer.Next();
@@ -163,8 +169,9 @@ napi_value NodeRand::Generate(napi_env env, napi_callback_info info) {
 }
 
 // TODO: Change to async function so that push can be called after return
-napi_value NodeRand::GenerateSequenceStream(napi_env env, napi_callback_info info) {
-    NodeRand* rSeed = GetSelf<NodeRand>(env, info);
+template<class GENERATOR>
+napi_value NodeRand<GENERATOR>::GenerateSequenceStream(napi_env env, napi_callback_info info) {
+    NodeRand<GENERATOR>* rSeed = GetSelf<NodeRand<GENERATOR>>(env, info);
 
     NapiArgInt64 arg0, arg1;
     NapiArgUint32 arg2;
@@ -183,8 +190,11 @@ napi_value NodeRand::GenerateSequenceStream(napi_env env, napi_callback_info inf
 
 /* Register this as an ES Module */
 napi_value Init(napi_env env, napi_value exports) {
-  // TODO: Pass exports?
-  return NodeRand::Init(env, exports);
+  NodeRand<std::mt19937>::Init("mt19937", env, exports);
+  NodeRand<std::mt19937_64>::Init("mt19937_64", env, exports);
+  std::cout << "done" << std::endl;
+  return exports;
 }
 
+/* Register this as an ES Module */
 NAPI_MODULE(NODE_GYP_MODULE_NAME, Init)

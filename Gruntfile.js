@@ -44,7 +44,7 @@ module.exports = function(grunt) {
       const nodeCWD = 'src';
       const nodeGypCmd = 'node-gyp';
       const nodeGypConfigureArgs = ["configure", `--${this.target}`]
-      const nodeGypBuildArgs = ["build", "-j", "4", `--${this.target}`]
+      const nodeGypBuildArgs = ["build", "-j", "16", `--${this.target}`]
 
       // Configure
       grunt.log.debug(`Executing: ${nodeGypCmd}`, ...nodeGypConfigureArgs);      

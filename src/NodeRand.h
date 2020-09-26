@@ -11,6 +11,7 @@ namespace node_rand {
 
 /// \class NodeRand
 /// \brief c++ addon to generate reproducible random number sequences based off a seed
+template<class GENERATOR>
 class NodeRand {
     // reference for 'this' class ctor
     static napi_ref m_constructor;
@@ -26,10 +27,10 @@ class NodeRand {
     // Instance of global buffer for psuedo seeds
     NodeGlobalBuffer m_GlobalBuffer;
     // rng
-    std::mt19937 m_generator;
+    GENERATOR m_generator;
 
     /// \brief ctor
-    explicit NodeRand();
+    NodeRand();
 
     /// \brief dtor
     ~NodeRand();
@@ -66,7 +67,7 @@ class NodeRand {
 
 public:
     /// \brief Module init function
-    static napi_value Init(napi_env env, napi_value exports);
+    static napi_value Init(const std::string& generatorName, napi_env env, napi_value exports);
 };
 
 }
