@@ -27,7 +27,7 @@ napi_value NodeRand::SetReadable(napi_env env, napi_callback_info info)
   return nullptr;
 }
 
-NodeRand::NodeRand() : m_generator(std::make_unique<std::mt19937>(std::random_device{}())), m_GlobalBuffer(std::make_unique<GlobalBuffer>()) {}
+NodeRand::NodeRand() : m_env(nullptr), m_wrapper(nullptr), m_seedReset(false), m_GlobalBuffer(), m_generator(std::random_device{}()) {}
 
 NodeRand::~NodeRand() {
     napi_delete_reference(m_env, m_wrapper);
@@ -115,7 +115,7 @@ napi_value NodeRand::SetSeed(napi_env env, napi_callback_info info) {
 
   if (argc == 0) {
     std::cout << "Seed generator with random_device" << std::endl;
-    rSeed->m_GlobalBuffer->SetSeed(std::random_device{}());
+    rSeed->m_GlobalBuffer.SetSeed(std::random_device{}());
   } 
   else {
     NapiArgInt64 arg0;
@@ -123,7 +123,7 @@ napi_value NodeRand::SetSeed(napi_env env, napi_callback_info info) {
     int64_t seed = arg0.GetVal();
     std::cout << "Seed generator with set seed: " << seed << std::endl;
     
-    rSeed->m_GlobalBuffer->GlobalBuffer::SetSeed(seed);
+    rSeed->m_GlobalBuffer.SetSeed(seed);
   }
 
   return nullptr;
@@ -133,9 +133,9 @@ napi_value NodeRand::Generate(napi_env env, napi_callback_info info) {
     NodeRand* rSeed = GetSelf<NodeRand>(env, info);
 
     if (rSeed->m_seedReset) {
-      auto fakeSeed = rSeed->m_GlobalBuffer->Next();
+      auto fakeSeed = rSeed->m_GlobalBuffer.Next();
       std::cout << "Setting fake seed: " << fakeSeed << std::endl;
-      rSeed->m_generator->seed(fakeSeed);
+      rSeed->m_generator.seed(fakeSeed);
       rSeed->m_seedReset = false;
     }
 
@@ -156,7 +156,7 @@ napi_value NodeRand::Generate(napi_env env, napi_callback_info info) {
     std::uniform_int_distribution<int64_t> distribution(min, max);
 
     napi_value result;
-    CheckStatus(napi_create_int64(env, distribution(*rSeed->m_generator), &result), 
+    CheckStatus(napi_create_int64(env, distribution(rSeed->m_generator), &result), 
       env, "Failed to create int64");
 
     return result;
@@ -175,7 +175,7 @@ napi_value NodeRand::GenerateSequenceStream(napi_env env, napi_callback_info inf
     uint32_t count = arg2.GetVal();
 
     // get thread-safe seed off global
-    int64_t seed = rSeed->m_GlobalBuffer->Next();
+    int64_t seed = rSeed->m_GlobalBuffer.Next();
 
     // Return new instance of NodeRandStream
     return NodeRandStream::NewInstance(env, rSeed->m_readableCtor, seed, min, max, count);

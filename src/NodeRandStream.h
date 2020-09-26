@@ -14,22 +14,16 @@ private:
         napi_async_work work{nullptr};
         // threadsafe function instance
         napi_threadsafe_function tsfn{nullptr};
-
         // rng instance
         std::unique_ptr<std::mt19937> generator{nullptr};
-
         // distribution instance
         std::unique_ptr<std::uniform_int_distribution<int64_t>> distribution{nullptr};
-
         // min random number
         int64_t min{0};
-
         // max random number
         int64_t max{0};
-
         // how many random numbers to generate
         uint32_t count{0};
-
         // reference to node js Readable
         napi_ref readable_ref{nullptr};
     };
@@ -38,20 +32,14 @@ private:
     struct ThreadSafeFunctionData {
         // signal this is the last call
         bool final{false};
-
         // numbers to write to buffer
         std::unique_ptr<std::vector<int64_t>> buffer{nullptr};
-
         // threadsafe function instance
         napi_threadsafe_function tsfn{nullptr};
-
         // reference to node js Readable
         napi_ref readable_ref{nullptr};
     };
-
-    // standard uniform int distribution
     
-
     static void ExecuteThreadSafeFunction(napi_env env, napi_value js_cb, void* context, void* data);
     static void ThreadSafeFunctionFinalized(napi_env env, void* finalize_data, void* finalize_hint);
     static void ExecuteAsyncFunction(napi_env env, void* data);

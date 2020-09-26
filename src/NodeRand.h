@@ -5,13 +5,29 @@
 #include <queue>
 #include <memory>
 #include <iostream>
+#include "NodeGlobalBuffer.h"
 
 namespace node_rand {
 
 /// \class NodeRand
 /// \brief c++ addon to generate reproducible random number sequences based off a seed
 class NodeRand {
-private:
+    // reference for 'this' class ctor
+    static napi_ref m_constructor;
+    // reference for NodeJS Readable ctor
+    static napi_ref m_readableCtor;
+
+    // napi_env
+    napi_env m_env;
+    // passed along to class to get reference to 'this'
+    napi_ref m_wrapper;
+    // signal seed reset
+    bool m_seedReset;
+    // Instance of global buffer for psuedo seeds
+    NodeGlobalBuffer m_GlobalBuffer;
+    // rng
+    std::mt19937 m_generator;
+
     /// \brief ctor
     explicit NodeRand();
 
@@ -44,68 +60,13 @@ private:
     /// \param arg2 int64_t count - how many to generate
     /// \return Readable instance that will write random numbers to buffer. See class rand_seed_stream
     static napi_value GenerateSequenceStream(napi_env env, napi_callback_info info);
-    
-    // reference for 'this' class ctor
-    static napi_ref m_constructor;
-    // reference for NodeJS Readable ctor
-    static napi_ref m_readableCtor;
 
-    // napi_env
-    napi_env m_env;
-    // passed along to class to get reference to 'this'
-    napi_ref m_wrapper;
-    // the RNG
-    std::unique_ptr<std::mt19937> m_generator;
-    // signal seed reset
-    bool m_seedReset{false};
-
-    // TODO: Move this to a new file!!
-    /// \brief Singleton queue of int64_t of random numbers for async sequence calls
-    class GlobalBuffer {
-        static const uint64_t BufferMax{1000};
-        std::queue<int64_t> m_buffer;
-        std::mt19937 m_generator;
-        std::uniform_int_distribution<int64_t> m_distribution;
-
-        void FillBuffer()
-        {
-            // Clear buffer
-            std::queue<int64_t> empty;
-            m_buffer.swap(empty);
-
-            // Fill Buffer
-            for (size_t i = 0; i < BufferMax; i++) {
-                auto num = m_distribution(m_generator);
-                m_buffer.push(num);
-            }
-        }
-
-    public:
-        GlobalBuffer() : m_buffer(), m_generator(std::random_device{}()), 
-            m_distribution(std::numeric_limits<int64_t>::min(), std::numeric_limits<int64_t>::max()) {}
-
-        void SetSeed(const int64_t seed) {
-            m_generator.seed(seed);
-            FillBuffer();
-        }
-
-        int64_t Next() {
-            if (m_buffer.empty()) {
-                FillBuffer();
-            }
-            auto next = m_buffer.front();
-            m_buffer.pop();
-            return next;
-        }
-    };
-    std::unique_ptr<GlobalBuffer> m_GlobalBuffer;
+    /// \brief Calls ~Destructor()
+    static void Destructor(napi_env env, void* nativeObject, void* finalize_hint);
 
 public:
     /// \brief Module init function
     static napi_value Init(napi_env env, napi_value exports);
-
-    /// \brief Calls ~Destructor()
-    static void Destructor(napi_env env, void* nativeObject, void* finalize_hint);
 };
 
 }

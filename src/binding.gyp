@@ -5,7 +5,7 @@
   'targets': [
     {
       'target_name': 'node_rand',
-      'sources': [ 'NodeRand.cc', 'NodeRandStream.cc' ],
+      'sources': [ 'NodeGlobalBuffer.cc', 'NodeRand.cc', 'NodeRandStream.cc' ],
       "conditions": [['OS=="win"', {
          'msvs_settings':
           {
