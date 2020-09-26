@@ -1,4 +1,4 @@
-import { NodeRand } from '../src'
+import { NodeRand_mt19937 as NodeRand } from '../src'
 import { Readable, Writable } from 'stream'
 
 import 'mocha'
