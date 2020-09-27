@@ -2,7 +2,7 @@
 
 using namespace node_rand;
 
-NodeGlobalBuffer::NodeGlobalBuffer() : m_buffer(), m_generator(std::random_device{}()), m_distribution(0, ~(uint64_t)0) {}
+NodeGlobalBuffer::NodeGlobalBuffer() : m_buffer(), m_generator(std::random_device{}()), m_distribution(std::numeric_limits<int64_t>::min(), std::numeric_limits<int64_t>::max()) {}
 
 void NodeGlobalBuffer::FillBuffer()
 {

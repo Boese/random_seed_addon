@@ -1,6 +1,6 @@
 #include "NodeRand.h"
 #include "NodeRandStream.h"
-#include "napi_extenstions.hpp"
+#include "napi_extenstions.h"
 
 #include <node_api.h>
 #include <assert.h>
@@ -27,7 +27,7 @@ napi_value NodeRand<GENERATOR>::SetReadable(napi_env env, napi_callback_info inf
   napi_value args[1];
   CheckStatus(napi_get_cb_info(env, info, &argc, args, nullptr, nullptr), env, "Failed to get callback info in SetReadable");
   CheckStatus(napi_create_reference(env, args[0], 1, &m_readableCtor), env, "Failed to create NodeJS Readable reference");
-  std::cout << "SetReadable" << std::endl;
+  std::cout << "SetReadable" << __FUNCTION__ << std::endl;
   return nullptr;
 }
 
@@ -112,6 +112,7 @@ napi_value NodeRand<GENERATOR>::New(napi_env env, napi_callback_info info) {
 template<class GENERATOR>
 napi_value NodeRand<GENERATOR>::SetSeed(napi_env env, napi_callback_info info) {
   NodeRand<GENERATOR>* rSeed = GetSelf<NodeRand<GENERATOR>>(env, info);
+  std::cout << "SetSeed" << typeid(rSeed).name() << std::endl;
 
   // Get seed if specified. If not use std::random_device()
   size_t argc = 1;
@@ -184,8 +185,14 @@ napi_value NodeRand<GENERATOR>::GenerateSequenceStream(napi_env env, napi_callba
     // get thread-safe seed off global
     int64_t seed = rSeed->m_GlobalBuffer.Next();
 
+    min = napi_extensions::LimitNumberBetweenJavascriptMinMax(min);
+    max = napi_extensions::LimitNumberBetweenJavascriptMinMax(max);
+
     // Return new instance of NodeRandStream
-    return NodeRandStream::NewInstance(env, rSeed->m_readableCtor, seed, min, max, count);
+    std::cout << "GenerateSequenceStream seed: " << seed << std::endl;
+    GENERATOR g(seed);
+    const std::uniform_int_distribution<int64_t> d(min, max);
+    return NodeRandStream<int64_t, GENERATOR, std::uniform_int_distribution<int64_t>>::NewInstance(env, rSeed->m_readableCtor, g, d, count);
 }
 
 /* Register this as an ES Module */

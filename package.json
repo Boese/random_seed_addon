@@ -5,7 +5,7 @@
   "main": "dist/index.js",
   "types": "src/index.d.ts",
   "scripts": {
-    "test": "grunt build:release && tsc && grunt copy:release && grunt mochaTest"
+    "test": "grunt build:debug && tsc && grunt copy:debug && grunt mochaTest"
   },
   "keywords": [
     "C++",
