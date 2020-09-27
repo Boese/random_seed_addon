@@ -153,7 +153,7 @@ void NodeRandStream<T, GENERATOR, DISTRIBUTION>::ExecuteAsyncFunction(napi_env e
             tsfn_data->final = remaining < 1;
             tsfn_data->buffer.resize(count);
 
-            auto next = [&distribution, &generator] () { return distribution(generator); };
+            auto next = [&distribution, &generator] () -> T { return distribution(generator); };
             std::generate(tsfn_data->buffer.begin(), tsfn_data->buffer.end(), next);
 
             assert(napi_call_threadsafe_function(async_data->tsfn,
