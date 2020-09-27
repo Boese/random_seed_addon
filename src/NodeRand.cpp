@@ -10,7 +10,6 @@
 #include <sstream>
 #include <thread>
 #include <chrono>
-#include <type_traits>
 
 using namespace node_rand;
 using namespace napi_extensions;
@@ -112,7 +111,6 @@ napi_value NodeRand<GENERATOR>::New(napi_env env, napi_callback_info info) {
 template<class GENERATOR>
 napi_value NodeRand<GENERATOR>::SetSeed(napi_env env, napi_callback_info info) {
   NodeRand<GENERATOR>* rSeed = GetSelf<NodeRand<GENERATOR>>(env, info);
-  std::cout << "SetSeed" << typeid(rSeed).name() << std::endl;
 
   // Get seed if specified. If not use std::random_device()
   size_t argc = 1;
@@ -160,6 +158,7 @@ napi_value NodeRand<GENERATOR>::Generate(napi_env env, napi_callback_info info) 
         return nullptr;
     }
     
+    // TODO: Need to grab this from Args
     std::uniform_int_distribution<int64_t> distribution(min, max);
 
     napi_value result;
@@ -184,9 +183,6 @@ napi_value NodeRand<GENERATOR>::GenerateSequenceStream(napi_env env, napi_callba
 
     // get thread-safe seed off global
     int64_t seed = rSeed->m_GlobalBuffer.Next();
-
-    min = napi_extensions::LimitNumberBetweenJavascriptMinMax(min);
-    max = napi_extensions::LimitNumberBetweenJavascriptMinMax(max);
 
     // Return new instance of NodeRandStream
     std::cout << "GenerateSequenceStream seed: " << seed << std::endl;
