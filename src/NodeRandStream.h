@@ -23,7 +23,7 @@ private:
         // rng instance
         GENERATOR generator;
         // distribution instance
-        const DISTRIBUTION distribution;
+        DISTRIBUTION distribution;
         // async work item
         napi_async_work work{nullptr};
         // threadsafe function instance
@@ -59,7 +59,7 @@ public:
 
     /// \brief Instantiate class either using new or function() syntax
     /// \return this
-    static napi_value NewInstance(napi_env env, napi_ref readableCtorRef, GENERATOR& g, const DISTRIBUTION& d, uint32_t count);
+    static napi_value NewInstance(napi_env env, napi_ref readableCtorRef, GENERATOR& g, DISTRIBUTION& d, uint32_t count);
 };
 
 /// \brief 16kb is max buffer size for Node JS Readable stream. 16kb -> 2000 bytes to represent int64_t
@@ -185,7 +185,7 @@ void NodeRandStream<T, GENERATOR, DISTRIBUTION>::CompleteAsyncFunction(napi_env 
 }
 
 template<class T, class GENERATOR, class DISTRIBUTION>
-napi_value NodeRandStream<T, GENERATOR, DISTRIBUTION>::NewInstance(napi_env env, napi_ref readableCtorRef, GENERATOR& g, const DISTRIBUTION& d, uint32_t count) {
+napi_value NodeRandStream<T, GENERATOR, DISTRIBUTION>::NewInstance(napi_env env, napi_ref readableCtorRef, GENERATOR& g, DISTRIBUTION& d, uint32_t count) {
 
     std::cout << "NodeRandStream::NewInstance()" << std::endl;
 

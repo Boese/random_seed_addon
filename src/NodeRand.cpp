@@ -187,7 +187,7 @@ napi_value NodeRand<GENERATOR>::GenerateSequenceStream(napi_env env, napi_callba
     // Return new instance of NodeRandStream
     std::cout << "GenerateSequenceStream seed: " << seed << std::endl;
     GENERATOR g(seed);
-    const std::uniform_int_distribution<int64_t> d(min, max);
+    std::uniform_int_distribution<int64_t> d(min, max);
     return NodeRandStream<int64_t, GENERATOR, std::uniform_int_distribution<int64_t>>::NewInstance(env, rSeed->m_readableCtor, g, d, count);
 }
 
