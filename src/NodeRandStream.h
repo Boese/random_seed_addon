@@ -136,7 +136,7 @@ void NodeRandStream<T, GENERATOR, DISTRIBUTION>::ExecuteAsyncFunction(napi_env e
     AsyncFunctionData* async_data = (AsyncFunctionData*)data;
 
     GENERATOR& generator = async_data->generator;
-    const DISTRIBUTION& distribution = async_data->distribution;
+    DISTRIBUTION& distribution = async_data->distribution;
 
     assert(napi_acquire_threadsafe_function(async_data->tsfn) == napi_ok);
 
