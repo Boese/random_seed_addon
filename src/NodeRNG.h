@@ -14,10 +14,10 @@ namespace node_rand {
 template<typename ParamT, typename Distribution>
 class NodeRNG 
 {
-    const Distribution m_distribution;
+    const Distribution& m_distribution;
 
 public:
-    NodeRNG(const ParamT min, const ParamT max) : m_distribution(min, max) {
+    NodeRNG(const ParamT min = 0, const ParamT max = std::numeric_limits<ParamT>::max()) : m_distribution(Distribution(min, max)) {
         assert(min < max && "Min must be less than Max");
     }
 
@@ -30,6 +30,9 @@ public:
     const ParamT Generate(Generator& generator) const {
         return static_cast<ParamT>(m_distribution(generator));
     }
+
+    ParamT Min() const { return m_distribution.min(); }
+    ParamT Max() const { return m_distribution.max(); }
 };
 
 /**
