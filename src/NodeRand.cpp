@@ -160,7 +160,7 @@ napi_value NodeRand<GENERATOR>::Generate(napi_env env, napi_callback_info info) 
     }
     
     // TODO: Need to grab this from Args
-    NodeRNGUniformDistribution<int64_t> distribution(min, max);
+    NodeRNGUniformDistribution distribution(min, max);
 
     napi_value result;
     CheckStatus(napi_create_int64(env, distribution(rSeed->m_generator), &result), 
