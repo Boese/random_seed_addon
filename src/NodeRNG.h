@@ -9,30 +9,23 @@
 namespace node_rand {
 
 /// \class NodeRNG Base class for generating a random number using a random number generator and distribution
-/// \param ParamT Types for distribution [min, max] and return
-/// \param Distribution Type for distribution
-template<typename ParamT, typename Distribution>
-class NodeRNG 
-{
-    const Distribution& m_distribution;
-
+/// \param T Types for distribution [min, max] and return
+/// \param Distribution Type of distribution
+/// \note Behaves like std distribution types, eg: min(), max(), operator()
+template<typename T, typename Distribution>
+class NodeRNG {
+    const Distribution m_distribution;
 public:
-    NodeRNG(const ParamT min = 0, const ParamT max = std::numeric_limits<ParamT>::max()) : m_distribution(Distribution(min, max)) {
-        assert(min < max && "Min must be less than Max");
+    NodeRNG(const T min, const T max) : m_distribution{min, max} {
+        assert(max >= min && "Max must be greater or equal to min");
     }
 
     template<class Generator>
-    ParamT Generate(Generator& generator) {
-        return static_cast<ParamT>(m_distribution(generator));
+    const T operator()(Generator& generator) {
+        return static_cast<T>(const_cast<Distribution&>(m_distribution)(generator));
     }
-
-    template<class Generator>
-    const ParamT Generate(Generator& generator) const {
-        return static_cast<ParamT>(m_distribution(generator));
-    }
-
-    ParamT Min() const { return m_distribution.min(); }
-    ParamT Max() const { return m_distribution.max(); }
+    const T min() const { return static_cast<T>(m_distribution.min()); }
+    const T max() const { return static_cast<T>(m_distribution.max()); }
 };
 
 /**
@@ -44,41 +37,62 @@ public:
  *  const uint64_t a = 0;
  *  const uint64_t b = 2000;
  *  NodeRNGUniformDistribution rng(a, b);
- *  const uint64_t result = rng.Generate(generator);
+ *  const uint64_t result = rng(generator);
  * 
  *  // Example generating random int8_t using an int16_t distribution bound by int8_t
  *  const int8_t a2 = 0;
  *  const int8_t b2 = 10;
- *  NodeRNGUniformDistribution<int8_t, int16_t> rng2(a2, b2);
- *  const int8_t result2 = rng2.Generate(generator);
+ *  NodeRNGUniformDistribution rng2(a2, b2);
+ *  const int8_t result2 = rng2(generator);
  * 
  *  // Example generating random double
  *  const double a3 = 0;
  *  const double b3 = 1;
  *  NodeRNGUniformDistribution rng3(a3, b3);
- *  double result3 = rng3.Generate(generator);
+ *  double result3 = rng3(generator);
  * 
  */
-template<typename ParamT, typename DistT, typename Enable = void>
-class NodeRNGUniformDistributionType;
-
-template<typename ParamT, typename DistT>
-class NodeRNGUniformDistributionType<ParamT, DistT, std::enable_if_t<std::is_integral<ParamT>::value>> : public NodeRNG<ParamT, std::uniform_int_distribution<DistT>> {
-public:
-    NodeRNGUniformDistributionType(const ParamT min, const ParamT max) : NodeRNG(min, max) {}
-};
-
-template<typename ParamT, typename DistT>
-class NodeRNGUniformDistributionType<ParamT, DistT, std::enable_if_t<std::is_floating_point<ParamT>::value>> : public NodeRNG<ParamT, std::uniform_real_distribution<DistT>> {
-public:
-    NodeRNGUniformDistributionType(const ParamT min, const ParamT max) : NodeRNG(min, max) {}
-};
-
-template<typename ParamT, typename DistT = ParamT>
-class NodeRNGUniformDistribution : public NodeRNGUniformDistributionType<ParamT, DistT>
+template <typename T, typename Enable = void> 
+class NodeRNGUniformDistribution
 {
 public:
-    NodeRNGUniformDistribution(const ParamT min, const ParamT max) : NodeRNGUniformDistributionType(min, max) {}
+    NodeRNGUniformDistribution(const T min = std::numeric_limits<T>::min(), const T max = std::numeric_limits<T>::max()) {
+        assert(false && "Error! Default UnifiormDistribution used. Type T must be Number type");
+    }
+};
+
+/// \brief Floating point types
+template <typename T>
+class NodeRNGUniformDistribution<T, std::enable_if_t<std::is_floating_point<T>::value>> : public NodeRNG<T, const std::uniform_real_distribution<T>>
+{
+public:
+    NodeRNGUniformDistribution(const T min = std::numeric_limits<T>::min(), const T max = std::numeric_limits<T>::max()) : NodeRNG(min, max) {}
+};
+
+/// \brief Integer types (non 1 byte size)
+template <typename T>
+class NodeRNGUniformDistribution<T, std::enable_if_t<std::is_integral<T>::value && (sizeof(T) > 1)>> : public NodeRNG<T, const std::uniform_int_distribution<T>> 
+{
+public:
+    NodeRNGUniformDistribution(const T min = std::numeric_limits<T>::min(), const T max = std::numeric_limits<T>::max()) : NodeRNG(min, max) {}
+};
+
+/// \brief int8_t type (will use int16_t for distribution)
+template <typename T>
+class NodeRNGUniformDistribution<T, std::enable_if_t<std::is_integral<T>::value
+                                                && std::is_same<int8_t, T>::value>> : public NodeRNG<T, const std::uniform_int_distribution<int16_t>>
+{
+public:
+    NodeRNGUniformDistribution(const T min = std::numeric_limits<T>::min(), const T max = std::numeric_limits<T>::max()) : NodeRNG(min, max) {}
+};
+
+/// \brief uint8_t type (will use uint16_t for distribution)
+template <typename T>
+class NodeRNGUniformDistribution<T, std::enable_if_t<std::is_integral<T>::value
+                                                && std::is_same<uint8_t, T>::value>> : public NodeRNG<T, const std::uniform_int_distribution<uint16_t>>
+{
+public:
+    NodeRNGUniformDistribution(const T min = std::numeric_limits<T>::min(), const T max = std::numeric_limits<T>::max()) : NodeRNG(min, max) {}
 };
 
 /**

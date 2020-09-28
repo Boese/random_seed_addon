@@ -1,5 +1,6 @@
 #include "NodeRand.h"
 #include "NodeRandStream.h"
+#include "NodeRNG.h"
 #include "napi_extenstions.h"
 
 #include <node_api.h>
@@ -159,7 +160,7 @@ napi_value NodeRand<GENERATOR>::Generate(napi_env env, napi_callback_info info) 
     }
     
     // TODO: Need to grab this from Args
-    std::uniform_int_distribution<int64_t> distribution(min, max);
+    NodeRNGUniformDistribution distribution(min, max);
 
     napi_value result;
     CheckStatus(napi_create_int64(env, distribution(rSeed->m_generator), &result), 
@@ -187,6 +188,8 @@ napi_value NodeRand<GENERATOR>::GenerateSequenceStream(napi_env env, napi_callba
     // Return new instance of NodeRandStream
     std::cout << "GenerateSequenceStream seed: " << seed << std::endl;
     GENERATOR g(seed);
+
+    // TODO: Switch this to use NodeRNGUniformDistribution based off min/max in NewInstance
     std::uniform_int_distribution<int64_t> d(min, max);
     return NodeRandStream<int64_t, GENERATOR, std::uniform_int_distribution<int64_t>>::NewInstance(env, rSeed->m_readableCtor, g, d, count);
 }
