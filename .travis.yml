@@ -6,4 +6,4 @@ node_js:
   - 12
   - 10
   - node
-dist: bionic
+compiler: clang
