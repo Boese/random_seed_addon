@@ -56,7 +56,7 @@ template <typename T, typename Enable = void>
 class NodeRNGUniformDistribution
 {
 public:
-    NodeRNGUniformDistribution(const T min = std::numeric_limits<T>::min(), const T max = std::numeric_limits<T>::max()) {
+    NodeRNGUniformDistribution(const T, const T) {
         assert(false && "Error! Default UnifiormDistribution used. Type T must be Number type");
     }
 };
