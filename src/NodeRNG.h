@@ -66,7 +66,7 @@ template <typename T>
 class NodeRNGUniformDistribution<T, std::enable_if_t<std::is_floating_point<T>::value>> : public NodeRNG<T, const std::uniform_real_distribution<T>>
 {
 public:
-    NodeRNGUniformDistribution(const T min = std::numeric_limits<T>::min(), const T max = std::numeric_limits<T>::max()) : NodeRNG(min, max) {}
+    NodeRNGUniformDistribution(const T min = std::numeric_limits<T>::min(), const T max = std::numeric_limits<T>::max()) : NodeRNG<T, const std::uniform_real_distribution<T>>(min, max) {}
 };
 
 /// \brief Integer types (non 1 byte size)
@@ -74,7 +74,7 @@ template <typename T>
 class NodeRNGUniformDistribution<T, std::enable_if_t<std::is_integral<T>::value && (sizeof(T) > 1)>> : public NodeRNG<T, const std::uniform_int_distribution<T>> 
 {
 public:
-    NodeRNGUniformDistribution(const T min = std::numeric_limits<T>::min(), const T max = std::numeric_limits<T>::max()) : NodeRNG(min, max) {}
+    NodeRNGUniformDistribution(const T min = std::numeric_limits<T>::min(), const T max = std::numeric_limits<T>::max()) : NodeRNG<T, const std::uniform_int_distribution<T>> (min, max) {}
 };
 
 /// \brief int8_t type (will use int16_t for distribution)
@@ -83,7 +83,7 @@ class NodeRNGUniformDistribution<T, std::enable_if_t<std::is_integral<T>::value
                                                 && std::is_same<int8_t, T>::value>> : public NodeRNG<T, const std::uniform_int_distribution<int16_t>>
 {
 public:
-    NodeRNGUniformDistribution(const T min = std::numeric_limits<T>::min(), const T max = std::numeric_limits<T>::max()) : NodeRNG(min, max) {}
+    NodeRNGUniformDistribution(const T min = std::numeric_limits<T>::min(), const T max = std::numeric_limits<T>::max()) : NodeRNG<T, const std::uniform_int_distribution<int16_t>>(min, max) {}
 };
 
 /// \brief uint8_t type (will use uint16_t for distribution)
@@ -92,7 +92,7 @@ class NodeRNGUniformDistribution<T, std::enable_if_t<std::is_integral<T>::value
                                                 && std::is_same<uint8_t, T>::value>> : public NodeRNG<T, const std::uniform_int_distribution<uint16_t>>
 {
 public:
-    NodeRNGUniformDistribution(const T min = std::numeric_limits<T>::min(), const T max = std::numeric_limits<T>::max()) : NodeRNG(min, max) {}
+    NodeRNGUniformDistribution(const T min = std::numeric_limits<T>::min(), const T max = std::numeric_limits<T>::max()) : NodeRNG<T, const std::uniform_int_distribution<uint16_t>>(min, max) {}
 };
 
 /**
