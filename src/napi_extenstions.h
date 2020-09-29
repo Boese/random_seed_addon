@@ -157,7 +157,7 @@ inline napi_status napi_inherits(napi_env env,           // Node-api env
     // Get JsThis
     status = napi_get_cb_info(env, info, nullptr, nullptr, &jsthis, nullptr);
     assert(status == napi_ok);
-    if (!status == napi_ok) { return status; }
+    if (status != napi_ok) { return status; }
 
     // Grap the prototypes of child/parent
     napi_value global, global_object, set_prototype_of, ctor_proto_prop, super_instance;
