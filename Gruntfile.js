@@ -19,6 +19,10 @@ module.exports = function(grunt) {
       },
 
       build: {
+        options: {
+          j: '-j=threads',
+          log_verbose: 'verbose mode'
+        },
         release: {},
         debug: {}
       },
@@ -44,17 +48,17 @@ module.exports = function(grunt) {
       const nodeCWD = 'src';
       const nodeGypCmd = 'node-gyp';
       const nodeGypConfigureArgs = ["configure", `--${this.target}`]
-      const nodeGypBuildArgs = ["build", "-j", "16", `--${this.target}`]
+      const nodeGypBuildArgs = ["build", "-j", `${grunt.option('j') || 1}`, `--${this.target}`, `${grunt.option('j') ? '-v' : ''}`]
 
       // Configure
-      grunt.log.debug(`Executing: ${nodeGypCmd}`, ...nodeGypConfigureArgs);      
+      grunt.log.writeln(`Executing: ${nodeGypCmd}`, ...nodeGypConfigureArgs);      
       ({pid, output, stdout, stderr, status, signal, error} = childprocess.spawnSync(nodeGypCmd, nodeGypConfigureArgs, {cwd: nodeCWD, shell: true, stdio: 'inherit', windowsHide: true}));
       if (error) {
         grunt.fail.fatal(error);
       }
 
       // Build
-      grunt.log.debug(`Executing: ${nodeGypCmd}`, ...nodeGypBuildArgs);      
+      grunt.log.writeln(`Executing: ${nodeGypCmd}`, ...nodeGypBuildArgs);      
       ({pid, output, stdout, stderr, status, signal, error} = childprocess.spawnSync(nodeGypCmd, nodeGypBuildArgs, {cwd: nodeCWD, shell: true, stdio: 'inherit', windowsHide: true}));
       if (error) {
         grunt.fail.fatal(error);
