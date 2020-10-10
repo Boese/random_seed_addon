@@ -11,9 +11,12 @@
 #include <array>
 #include <type_traits>
 #include <sstream>
+#include <vector>
 
 namespace napi_extensions
 {
+// TODO: Add logging capabilities in debug mode
+
 /*
     Check return status from napi_xxx(). If status != napi_ok, log message along with napi_extended_error_info
 */
@@ -192,14 +195,89 @@ inline napi_status napi_inherits(napi_env env,           // Node-api env
 static const int64_t JAVASCRIPT_MAX_SAFE_NUMBER = 0x1FFFFFFFFFFFFF; //(2^53 - 1)
 static const int64_t JAVASCRIPT_MIN_SAFE_NUMBER = -(JAVASCRIPT_MAX_SAFE_NUMBER);
 
-static int64_t LimitNumberBetweenJavascriptMinMax(const int64_t &number) {
-    if (number < JAVASCRIPT_MIN_SAFE_NUMBER) {
-        return JAVASCRIPT_MIN_SAFE_NUMBER;
-    } else if (number > JAVASCRIPT_MAX_SAFE_NUMBER) {
-        return JAVASCRIPT_MAX_SAFE_NUMBER;
+/// \brief TODO Fill this out
+template<class T>
+class NapiObjectWrap {
+    // reference to contructor for NapiObjectWrap
+    static napi_ref m_thisConstructor;
+    // passed along to class to get reference to 'this'
+    napi_ref m_wrapper;
+    
+    static napi_value NewAsConstructor(napi_env env, napi_callback_info info) {
+        std::cout << "NewAsConstructor" << std::endl;
+        napi_value jsthis;
+        CheckStatus(napi_get_cb_info(env, info, nullptr, nullptr, &jsthis, nullptr), env, "NewAsConstructor::napi_get_cb_info");
+
+        T* t = new T();
+
+        t->m_env = env;
+        CheckStatus(napi_wrap(env,
+                        jsthis,
+                        reinterpret_cast<void*>(t),
+                        NapiObjectWrap<T>::Destructor,
+                        nullptr,
+                        &t->m_wrapper), env, "NewAsConstructor::napi_wrap");
+        
+        return jsthis;
     }
-    return number;
-}
+
+    static napi_value NewAsFunction(napi_env env, napi_callback_info info) {
+        std::cout << "NewAsFunction" << std::endl;
+        CheckStatus(napi_get_cb_info(env, info, nullptr, nullptr, nullptr, nullptr), env, "NewAsFunction::napi_get_cb_info");
+
+        napi_value cons, instance;
+        CheckStatus(napi_get_reference_value(env, m_thisConstructor, &cons), env, "NewAsFunction::napi_get_reference_value");
+        CheckStatus(napi_new_instance(env, cons, 0, nullptr, &instance), env, "NewAsFunction::napi_new_instance");
+
+        return instance;
+    }
+
+    /// \brief Instantiate class either using new or function() syntax. New T().
+    /// \return this
+    static napi_value New(napi_env env, napi_callback_info info) {
+        std::cout << "New" << std::endl;
+        return m_thisConstructor ? NewAsConstructor(env, info) : NewAsFunction(env, info);
+    }
+
+    /// \brief Calls T->~Destructor()
+    static void Destructor(napi_env env, void* nativeObject, void* /*finalize_hint*/) {
+        std::cout << "Destructor" << std::endl;
+        delete reinterpret_cast<T*>(nativeObject);
+    }
+
+protected:
+    // napi_env
+    /// \note Will be set after construction
+    napi_env m_env;
+
+    //virtual const std::vector<napi_property_descriptor>& GetClassProps() const = 0;
+    //virtual const std::string& GetClassName() const = 0;
+
+public:
+    virtual ~NapiObjectWrap() {
+        std::cout << "~NapiObjectWrap" << std::endl;
+        napi_delete_reference(m_env, m_wrapper);
+    }
+
+    /// \brief Module init function
+    static napi_value Init(const std::string& className, napi_env env, napi_value exports) {
+        std::cout << "Init: " << std::endl;
+
+        auto props = T::GetClassProps();
+        auto NodeRandProps = props.data();
+
+        napi_value cons;
+        CheckStatus(napi_define_class(env, className.c_str(), NAPI_AUTO_LENGTH, New, nullptr, 
+            props.size(), NodeRandProps, &cons), env, "Define class");
+        CheckStatus(napi_create_reference(env, cons, 1, &m_thisConstructor), env, "Create class reference");
+        CheckStatus(napi_set_named_property(env, exports, className.c_str(), cons), env, "Set ctor property");
+
+        return exports;
+    }
+};
+
+template<class T>
+napi_ref NapiObjectWrap<T>::m_thisConstructor;
 
 
 } // end napi_extensions namespace

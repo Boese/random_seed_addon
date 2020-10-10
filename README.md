@@ -9,13 +9,12 @@ to write random numbers to a fixed_size buffer back to javascript. This will hop
 save some memory, not block eventloop. 
 
 Class should be able to generate reproducible random numbers per instance based on seed.
-This will wrap c++ random library.
+This will wrap c++ <random> library.
 Should be able to create any random number or sequence of type compatible with JS
 > Supported JS Types: int8, uint8, int16, uint16, int32, uint32, double, int64 (limit by js MAX NUM), big_int64, big_uint64
 
 
 <ul>
-<li>NOTE: napi supports create_bigint, but only in experimental mode. Should be able to use buffer to accomplish without.</li>
 <li>NOTE: if seed is not set, random one will be used.</li>
 </ul>
 
@@ -42,7 +41,7 @@ class RandSeed (implement NodeJS.Writeable stream) {
     <li>Update README with how to use</li>
     <li>Add badge for coverage</li>
     <li>publish to npm</li>
-    <li>[FUTURE] Currently int64 only supported. Add other types: int8, uint8, int16, uint16, int32, uint32, double, big_int64, big_uint64</li>
+    <li>[FUTURE] Long term goal is to recreate c++ std <random> in addon, supporting both distributions and generators</li>
 </ul>
 
 

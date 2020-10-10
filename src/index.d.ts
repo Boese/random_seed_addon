@@ -4,6 +4,10 @@
 
 import { Readable } from 'stream'
 
+declare enum Generator {
+  
+}
+
 // Not really an abstract class, just useful for definitions. This class is templated on the c++ random number generator type
 // DON'T IMPORT
 declare abstract class _NodeRand {

@@ -1,7 +1,7 @@
 #include "NodeRand.h"
 #include "NodeRandStream.h"
 #include "NodeRNG.h"
-#include "napi_extenstions.h"
+#include "napi_extensions.h"
 
 #include <node_api.h>
 #include <assert.h>
@@ -15,8 +15,8 @@
 using namespace node_rand;
 using namespace napi_extensions;
 
-template<class GENERATOR>
-napi_ref NodeRand<GENERATOR>::m_constructor;
+// template<class GENERATOR>
+// napi_ref NodeRand<GENERATOR>::m_constructor;
 template<class GENERATOR>
 napi_ref NodeRand<GENERATOR>::m_readableCtor;
 
@@ -32,81 +32,8 @@ napi_value NodeRand<GENERATOR>::SetReadable(napi_env env, napi_callback_info inf
 }
 
 template<class GENERATOR>
-NodeRand<GENERATOR>::NodeRand() : m_env(nullptr), m_wrapper(nullptr), m_seedReset(false), m_GlobalBuffer(), m_generator(std::random_device{}()) {}
-
-template<class GENERATOR>
-NodeRand<GENERATOR>::~NodeRand() {
-    napi_delete_reference(m_env, m_wrapper);
-}
-
-template<class GENERATOR>
-void NodeRand<GENERATOR>::Destructor(napi_env env,
-                          void* nativeObject,
-                          void* /*finalize_hint*/) {
-  reinterpret_cast<NodeRand*>(nativeObject)->~NodeRand();
-}
-
-template<class GENERATOR>
-napi_value NodeRand<GENERATOR>::Init(const std::string& generatorName, napi_env env, napi_value exports) {
-  napi_property_descriptor NodeRandProps[] = {
-    { "SetSeed", 0, SetSeed, 0, 0, 0, napi_default, 0 },
-    { "Generate", 0, Generate, 0, 0, 0, napi_default, 0 },
-    { "GenerateSequenceStream", 0, GenerateSequenceStream, 0, 0, 0, napi_default, 0 },
-    { "SetReadable", 0, SetReadable, 0, 0, 0, napi_static, 0 }
-  };
-
-  // export NodeRand<GENERATOR>
-  napi_value cons;
-  const std::string className = std::string("NodeRand_" + generatorName);
-  CheckStatus(napi_define_class(env, className.c_str(), NAPI_AUTO_LENGTH, New, nullptr, 
-    sizeof(NodeRandProps) / sizeof(NodeRandProps[0]), NodeRandProps, &cons), env, "Define class");
-  CheckStatus(napi_create_reference(env, cons, 1, &m_constructor), env, "Create class reference");
-  CheckStatus(napi_set_named_property(env, exports, className.c_str(), cons), env, "Set ctor property");
-
-  return exports;
-}
-
-template<class GENERATOR>
-napi_value NodeRand<GENERATOR>::New(napi_env env, napi_callback_info info) {
-  assert(m_readableCtor != nullptr && "Must call SetReadable(Readable) before using class!");
-  napi_status status;
-  napi_value target;
-  CheckStatus(napi_get_new_target(env, info, &target), env, "New::get_target");
-
-  if (m_constructor) {
-    // Invoked as constructor: `new NodeRand()`
-    napi_value jsthis;
-    status = napi_get_cb_info(env, info, nullptr, nullptr, &jsthis, nullptr);
-    assert(status == napi_ok);
-
-    NodeRand* rSeed = new NodeRand<GENERATOR>();
-
-    rSeed->m_env = env;
-    status = napi_wrap(env,
-                       jsthis,
-                       reinterpret_cast<void*>(rSeed),
-                       NodeRand::Destructor,
-                       nullptr,
-                       &rSeed->m_wrapper);
-    assert(status == napi_ok);
-    
-    return jsthis;
-  } else {
-    std::cout << "Invoked as plain function" << std::endl;
-    // Invoked as plain function `NodeRand()`, turn into construct call.
-    status = napi_get_cb_info(env, info, nullptr, nullptr, nullptr, nullptr);
-    assert(status == napi_ok);
-
-    napi_value cons;
-    status = napi_get_reference_value(env, m_constructor, &cons);
-    assert(status == napi_ok);
-
-    napi_value instance;
-    status = napi_new_instance(env, cons, 0, nullptr, &instance);
-    assert(status == napi_ok);
-
-    return instance;
-  }
+NodeRand<GENERATOR>::NodeRand() : m_seedReset(false), m_GlobalBuffer(), m_generator(std::random_device{}()) {
+  std::cout << "new NodeRand" << std::endl;
 }
 
 template<class GENERATOR>
@@ -138,6 +65,20 @@ template<class GENERATOR>
 napi_value NodeRand<GENERATOR>::Generate(napi_env env, napi_callback_info info) {
     NodeRand<GENERATOR>* rSeed = GetSelf<NodeRand<GENERATOR>>(env, info);
 
+    
+
+    // I have generator from template
+    // I need distribution from args
+
+    // enum type Distribution - The distribution type to use
+    // enum type T - uint8_t, int8_t, ... bigint64_t
+    // int64_t arg0 min
+    // int64_t arg1 max
+    // validate arg0 and arg1 match type T bounds
+    // return int64_t
+
+    // If bigint64 or biguint64, same but return must match and no validation is needed
+
     if (rSeed->m_seedReset) {
       auto fakeSeed = rSeed->m_GlobalBuffer.Next();
       std::cout << "Setting fake seed: " << fakeSeed << std::endl;
@@ -148,8 +89,8 @@ napi_value NodeRand<GENERATOR>::Generate(napi_env env, napi_callback_info info) 
     NapiArgInt64 arg0, arg1;
     GetArgs(env, info, arg0, arg1);
 
-    int64_t min =  napi_extensions::LimitNumberBetweenJavascriptMinMax(arg0.GetVal());
-    int64_t max =  napi_extensions::LimitNumberBetweenJavascriptMinMax(arg1.GetVal());
+    int64_t min =  arg0.GetVal();
+    int64_t max =  arg1.GetVal();
 
     if (max < min) {
       // TODO: Replace all errors with this call
@@ -196,8 +137,8 @@ napi_value NodeRand<GENERATOR>::GenerateSequenceStream(napi_env env, napi_callba
 
 /* Register this as an ES Module */
 napi_value Init(napi_env env, napi_value exports) {
-  NodeRand<std::mt19937>::Init("mt19937", env, exports);
-  NodeRand<std::mt19937_64>::Init("mt19937_64", env, exports);
+  NodeRand<std::mt19937>::Init("NodeRand_mt19937", env, exports);
+  NodeRand<std::mt19937_64>::Init("NodeRand_mt19937_64", env, exports);
   std::cout << "done" << std::endl;
   return exports;
 }

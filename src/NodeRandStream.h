@@ -1,6 +1,6 @@
 #pragma once
 
-#include "napi_extenstions.h"
+#include "napi_extensions.h"
 
 #include <node_api.h>
 #include <memory>

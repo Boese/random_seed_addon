@@ -6,22 +6,18 @@
 #include <memory>
 #include <iostream>
 #include "NodeGlobalBuffer.h"
+#include "napi_extensions.h"
 
 namespace node_rand {
 
 /// \class NodeRand
 /// \brief c++ addon to generate reproducible random number sequences based off a seed
 template<class GENERATOR>
-class NodeRand {
-    // reference for 'this' class ctor
-    static napi_ref m_constructor;
+class NodeRand : public napi_extensions::NapiObjectWrap<NodeRand<GENERATOR>> {
+
     // reference for NodeJS Readable ctor
     static napi_ref m_readableCtor;
 
-    // napi_env
-    napi_env m_env;
-    // passed along to class to get reference to 'this'
-    napi_ref m_wrapper;
     // signal seed reset
     bool m_seedReset;
     // Instance of global buffer for psuedo seeds
@@ -29,20 +25,10 @@ class NodeRand {
     // rng
     GENERATOR m_generator;
 
-    /// \brief ctor
-    NodeRand();
-
-    /// \brief dtor
-    ~NodeRand();
-
     /// \brief Used to set m_readableCtor. Must call before using class.
     /// \param arg0 - Node JS Readable Function
     /// \return null
     static napi_value SetReadable(napi_env env, napi_callback_info info);
-
-    /// \brief Instantiate class either using new or function() syntax
-    /// \return this
-    static napi_value New(napi_env env, napi_callback_info info);
 
     /// \brief Set the seed of the RNG
     /// \param (Optional) arg0 int64_t seed. Default is random seed
@@ -62,12 +48,22 @@ class NodeRand {
     /// \return Readable instance that will write random numbers to buffer. See class rand_seed_stream
     static napi_value GenerateSequenceStream(napi_env env, napi_callback_info info);
 
-    /// \brief Calls ~Destructor()
-    static void Destructor(napi_env env, void* nativeObject, void* finalize_hint);
-
 public:
-    /// \brief Module init function
-    static napi_value Init(const std::string& generatorName, napi_env env, napi_value exports);
+    static std::vector<napi_property_descriptor> GetClassProps() {
+        std::vector<napi_property_descriptor> props{
+            {"SetSeed", 0, SetSeed, 0, 0, 0, napi_default, 0},
+            { "Generate", 0, Generate, 0, 0, 0, napi_default, 0 },
+            { "GenerateSequenceStream", 0, GenerateSequenceStream, 0, 0, 0, napi_default, 0 },
+            { "SetReadable", 0, SetReadable, 0, 0, 0, napi_static, 0 }
+        };
+        return props;
+    }
+
+    /// \brief ctor
+    NodeRand();
+
+    /// \brief dtor
+    ~NodeRand() { std::cout << "~NodeRand" << std::endl; };
 };
 
 }
